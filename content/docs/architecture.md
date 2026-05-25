@@ -1,0 +1,54 @@
+---
+title: "Architecture"
+weight: 2
+---
+
+# Architecture
+
+OpenCloudTouch replaces the Bose SoundTouch cloud infrastructure with a local service running on your network.
+
+## How Bose SoundTouch Works (Original)
+
+```mermaid
+graph LR
+    Speaker[🔊 SoundTouch Speaker] -->|HTTPS| Bose[☁️ Bose Cloud]
+    Bose -->|Presets, Radio, Updates| Speaker
+    App[📱 Bose App] -->|API| Bose
+```
+
+Bose speakers rely on cloud services for presets, internet radio station lookup, multi-room coordination, and firmware updates. When Bose shut down these services, speakers lost most of their smart functionality.
+
+## How OpenCloudTouch Works
+
+```mermaid
+graph LR
+    Speaker[🔊 SoundTouch Speaker] -->|HTTP/SSDP| OCT[🏠 OpenCloudTouch]
+    OCT -->|Presets, Radio, Control| Speaker
+    UI[🌐 Web UI] -->|REST API| OCT
+    OCT -.->|Optional| TuneIn[📻 TuneIn API]
+```
+
+OpenCloudTouch intercepts the speaker's cloud calls by acting as a local replacement:
+
+- **SSDP Discovery** — finds speakers on the network automatically
+- **REST API** — provides preset management, radio lookup, and speaker control
+- **Web UI** — browser-based interface for configuration and playback
+- **No Internet required** — works fully offline (except for streaming radio content)
+
+## Components
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Backend | Python (FastAPI) | REST API, speaker communication, SSDP discovery |
+| Frontend | React (TypeScript) | Web-based control interface |
+| Database | SQLite | Preset storage, speaker registry |
+| Container | Docker | Deployment and isolation |
+
+## Network Requirements
+
+OpenCloudTouch needs to be on the **same network segment** as your speakers. It uses:
+
+- **UDP 1900** — SSDP discovery (multicast)
+- **UDP 5353** — mDNS (multicast)
+- **TCP 8090** — Web UI and REST API
+- **TCP 8091** — WebSocket notifications
