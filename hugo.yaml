@@ -1,0 +1,88 @@
+baseURL: https://opencloudtouch.org/
+title: OpenCloudTouch
+theme: hextra
+enableGitInfo: true
+defaultContentLanguage: en
+
+languages:
+  en:
+    label: English
+    weight: 1
+  de:
+    label: Deutsch
+    weight: 2
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+  tableOfContents:
+    startLevel: 2
+
+menu:
+  main:
+    - identifier: documentation
+      name: Documentation
+      pageRef: /docs
+      weight: 1
+    - identifier: search
+      name: Search
+      weight: 3
+      params:
+        type: search
+    - identifier: github
+      name: GitHub
+      weight: 4
+      url: https://github.com/opencloudtouch/opencloudtouch
+      params:
+        icon: github
+    - identifier: theme-toggle
+      name: Theme Toggle
+      weight: 5
+      params:
+        type: theme-toggle
+    - identifier: language-switch
+      name: Language
+      weight: 6
+      params:
+        type: language-switch
+
+  sidebar:
+    - name: More
+      params:
+        type: separator
+      weight: 1
+    - name: GitHub Repository
+      url: https://github.com/opencloudtouch/opencloudtouch
+      weight: 2
+    - name: Discussions
+      url: https://github.com/opencloudtouch/opencloudtouch/discussions
+      weight: 3
+
+params:
+  description: Free your Bose SoundTouch speakers from the cloud
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    logo:
+      path: images/logo.svg
+      link: /
+      width: 40
+      height: 40
+  page:
+    width: wide
+  theme:
+    default: system
+    displayToggle: true
+  editURL:
+    enable: false
+  displayUpdatedDate: true
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+  footer:
+    displayPoweredBy: false

@@ -3,8 +3,6 @@ title: "Architecture"
 weight: 2
 ---
 
-# Architecture
-
 OpenCloudTouch replaces the Bose SoundTouch cloud infrastructure with a local service running on your network.
 
 ## How Bose SoundTouch Works (Original)
@@ -42,13 +40,11 @@ OpenCloudTouch intercepts the speaker's cloud calls by acting as a local replace
 | Backend | Python (FastAPI) | REST API, speaker communication, SSDP discovery |
 | Frontend | React (TypeScript) | Web-based control interface |
 | Database | SQLite | Preset storage, speaker registry |
-| Container | Docker | Deployment and isolation |
-
+| Container | Docker | Deployment and isolation || Raspberry Pi Image | Pre-built OS image | Ready-to-flash image with everything pre-configured |
 ## Network Requirements
 
 OpenCloudTouch needs to be on the **same network segment** as your speakers. It uses:
 
 - **UDP 1900** — SSDP discovery (multicast)
 - **UDP 5353** — mDNS (multicast)
-- **TCP 8090** — Web UI and REST API
-- **TCP 8091** — WebSocket notifications
+- **TCP 7777** — Web UI and REST API

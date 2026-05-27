@@ -3,17 +3,18 @@ title: "Getting Started"
 weight: 1
 ---
 
-# Getting Started
-
 Get OpenCloudTouch running in three steps.
 
 ## Prerequisites
 
 - A **Raspberry Pi 4/5** (or any Linux machine / Docker host on your network)
-- **Docker** and **Docker Compose** installed
 - One or more **Bose SoundTouch** speakers on the same network
 
-## 1. Deploy OpenCloudTouch
+## Option A: Raspberry Pi Image (Easiest)
+
+Download the pre-built Raspberry Pi image from the [GitHub Releases](https://github.com/opencloudtouch/opencloudtouch/releases) page. Flash it to an SD card using [Raspberry Pi Imager](https://www.raspberrypi.com/software/), boot your Pi, and you're done — OpenCloudTouch starts automatically.
+
+## Option B: Docker Compose
 
 ```bash
 # Clone the repository
@@ -24,14 +25,14 @@ cd opencloudtouch
 docker compose up -d
 ```
 
-The service starts on port **8090** by default.
+The service starts on port **7777** by default.
 
 ## 2. Discover Your Speakers
 
 OpenCloudTouch automatically discovers SoundTouch speakers on your network via SSDP multicast. Open the web UI:
 
 ```
-http://<your-host-ip>:8090
+http://<your-host-ip>:7777
 ```
 
 Your speakers should appear within a few seconds.
@@ -44,9 +45,8 @@ Use the web interface to:
 - Create **multi-room groups** (zones)
 - Control **volume** and **playback**
 
-{{< hint warning >}}
-**WSL2 users:** Multicast discovery requires `networkingMode=mirrored` in `.wslconfig` plus a firewall rule for UDP ports 1900 and 5353. See [Network Configuration]({{< ref "/docs/network-config" >}}) for details.
-{{< /hint >}}
+> [!WARNING]
+> **WSL2 users:** Multicast discovery requires `networkingMode=mirrored` in `.wslconfig` plus a firewall rule for UDP ports 1900 and 5353. See [Network Configuration]({{< ref "/docs/network-config" >}}) for details.
 
 ## What's Next?
 

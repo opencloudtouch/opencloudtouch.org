@@ -1,0 +1,12 @@
+/* OpenCloudTouch custom styles for Hextra theme */
+
+/* Custom colors - subtle green accent for the "alive again" feel */
+:root {
+  --oct-accent: #10b981;
+  --oct-accent-light: #34d399;
+}
+
+/* Hero section extra spacing */
+.hextra-hero-headline {
+  letter-spacing: -0.02em;
+}
