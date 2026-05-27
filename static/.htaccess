@@ -1,0 +1,51 @@
+# ============================================
+# OpenCloudTouch — Security Hardening
+# ============================================
+
+# Disable directory listing
+Options -Indexes
+
+# Block access to hidden files (.git, .env, .htaccess itself is excluded by Apache)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Block access to build artifacts and config files
+<FilesMatch "\.(ya?ml|json|xml|toml)$">
+    Require all denied
+</FilesMatch>
+
+# Allow specific JSON/XML files needed by the site
+<FilesMatch "^(manifest\.json|site\.webmanifest|sitemap\.xml|index\.xml|.*search-data.*\.json)$">
+    Require all granted
+</FilesMatch>
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
+# Cache static assets (1 year for hashed files, 1 hour for HTML)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/html "access plus 1 hour"
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+</IfModule>
+
+# Custom error pages
+ErrorDocument 404 /404.html
