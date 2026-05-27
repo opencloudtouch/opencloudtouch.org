@@ -3,7 +3,7 @@ title: OpenCloudTouch
 layout: hextra-home
 ---
 
-{{< hextra/hero-badge >}}
+{{< hextra/hero-badge link="https://github.com/opencloudtouch/opencloudtouch" >}}
   <div class="hx:w-2 hx:h-2 hx:rounded-full hx:bg-primary-400"></div>
   <span>Open Source & Kostenlos</span>
   {{< icon name="arrow-circle-right" attributes="height=14" >}}
