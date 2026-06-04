@@ -1,0 +1,30 @@
+{
+  "data": {
+    "id": 1020646,
+    "amount": 1,
+    "object": "recurring_donation",
+    "paused": "false",
+    "psp_id": "sub_1Tds1nJRHVLVJ5LATvgEnLII",
+    "status": "canceled",
+    "canceled": "true",
+    "currency": "EUR",
+    "started_at": 1780405607,
+    "canceled_at": 1780406031,
+    "note_hidden": false,
+    "support_note": "joa da ka ma scho emoi wos stabils mochn",
+    "supporter_id": 10816073,
+    "duration_type": "month",
+    "supporter_name": "Grünwald Almöhü",
+    "supporter_email": "christian@scheils.de",
+    "current_period_end": 1782997603,
+    "supporter_feedback": "I prefer one-time support over monthly support.",
+    "supporter_name_type": "default",
+    "cancel_at_period_end": "false",
+    "current_period_start": 1780405603
+  },
+  "type": "recurring_donation.cancelled",
+  "attempt": 1,
+  "created": 1780406033,
+  "event_id": 580926,
+  "live_mode": true
+}

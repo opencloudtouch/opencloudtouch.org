@@ -1,0 +1,35 @@
+{
+  "data": {
+    "id": 14421406,
+    "amount": 5,
+    "object": "payment",
+    "status": "succeeded",
+    "message": "Siggi became a supporter.",
+    "currency": "EUR",
+    "refunded": "false",
+    "created_at": 1780394550,
+    "note_hidden": "false",
+    "refunded_at": null,
+    "coffee_count": 1,
+    "coffee_price": "5.0000",
+    "support_note": "Dein Programm hat meine 5 Bose Soundtouch Boxen gerettet - vielen Dank dafür",
+    "support_type": "Supporter",
+    "supporter_id": 10815174,
+    "supporter_name": "Siggi",
+    "transaction_id": "pi_3Tdp9PJRHVLVJ5LA0Eti2Zxx",
+    "application_fee": "0.25",
+    "supporter_email": "siggiaze@gmail.com",
+    "supporter_name_type": "default",
+    "total_amount_charged": "5.00"
+  },
+  "type": "donation.created",
+  "attempt": 1,
+  "created": 1780394554,
+  "event_id": 580796,
+  "live_mode": true,
+  "_meta": {
+    "note": "This event failed signature validation. Response was: {\"error\":\"Invalid signature\"}",
+    "webhook_response": "Invalid signature",
+    "timestamp": "2026-06-02T12:02:34Z"
+  }
+}

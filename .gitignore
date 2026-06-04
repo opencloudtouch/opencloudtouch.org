@@ -432,3 +432,16 @@ FodyWeavers.xsd
 public/
 resources/_gen/
 .hugo_build.lock
+
+# Supporters API — Secrets & Data
+static/api/.env
+static/api/supporters/.env.php
+static/api/supporters/deploy.properties
+static/api/supporters/supporters.csv
+static/api/supporters/supporters.csv.lock
+static/api/supporters/supporters.csv.backup.*
+static/api/supporters/webhook.log
+static/api/supporters/webhook-debug.log
+static/api/supporters/webhook-debug.log.*.old
+
+.local/

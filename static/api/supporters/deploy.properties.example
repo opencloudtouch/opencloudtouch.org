@@ -1,0 +1,16 @@
+# OpenCloudTouch Supporters API — Deployment Config
+# 
+# Fill in your credentials and run: .\deploy-supporters-api.ps1
+
+# FTP Credentials (for opencloudtouch.org)
+ftp.host=ftp.your-hosting.com
+ftp.user=your_ftp_username
+ftp.pass=your_ftp_password
+ftp.path=/public_html/api/supporters
+
+# BuyMeACoffee Webhook Secret (from BMC Dashboard → Settings → Webhooks)
+bmc.webhook.secret=wh_sec_your_secret_here
+
+# API Credentials (for GitHub Actions to download CSV)
+api.user=oct-ci
+api.pass=your_strong_password_here
