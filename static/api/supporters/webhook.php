@@ -2,7 +2,16 @@
 // BuyMeACoffee Webhook Handler for OpenCloudTouch Supporters
 // Handles all BMC event types, archives events, updates supporters.csv
 
+// Buffer output to prevent BOM/whitespace from included files leaking into response
+ob_start();
 require_once __DIR__ . '/.env.php';
+ob_end_clean();
+
+// Set response headers
+header('Content-Type: application/json; charset=utf-8');
+
+// Fix PHP 8 json_encode float precision (serialize_precision=-1 outputs full IEEE 754)
+ini_set('serialize_precision', 14);
 
 mb_internal_encoding('UTF-8');
 
@@ -127,6 +136,11 @@ function read_supporters($csv_file) {
 }
 
 function write_supporters($supporters, $csv_file) {
+    // Remove supporters with zero contributions (refunded everything)
+    $supporters = array_filter($supporters, function($s) {
+        return round($s['amount'], 2) > 0 || round($s['monthly'], 2) > 0;
+    });
+
     // Sort by total DESC, then date ASC
     uasort($supporters, function($a, $b) {
         $totalA = $a['amount'] + $a['monthly'];
@@ -138,14 +152,16 @@ function write_supporters($supporters, $csv_file) {
     });
 
     $fp = fopen($csv_file, 'w');
+    // Write UTF-8 BOM so readers (Excel, PHP, browsers) correctly interpret encoding
+    fwrite($fp, "\xEF\xBB\xBF");
     fputcsv($fp, ['name', 'type', 'amount', 'monthlyAmount', 'firstSupportDate']);
 
     foreach ($supporters as $n => $s) {
         fputcsv($fp, [
             $n,
             $s['type'],
-            $s['amount'],
-            $s['monthly'],
+            round($s['amount'], 2),
+            round($s['monthly'], 2),
             $s['date']
         ]);
     }
@@ -230,7 +246,7 @@ function handle_donation($data, $csv_file, $lock_file, $log_file) {
         write_supporters($supporters, $csv_file);
 
         http_response_code(200);
-        echo json_encode(['success' => true, 'supporter' => $name, 'amount' => $amount], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => true, 'supporter' => $name, 'amount' => round($amount, 2)], JSON_UNESCAPED_UNICODE);
     });
 }
 
@@ -269,7 +285,7 @@ function handle_subscription_started($data, $csv_file, $lock_file, $log_file) {
 
         file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Updated: $name (monthly: EUR $monthly_rate)\n", FILE_APPEND);
         http_response_code(200);
-        echo json_encode(['success' => true, 'supporter' => $name, 'monthly' => $monthly_rate], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => true, 'supporter' => $name, 'monthly' => round($monthly_rate, 2)], JSON_UNESCAPED_UNICODE);
     });
 }
 
@@ -319,7 +335,7 @@ function handle_subscription_updated($data, $csv_file, $lock_file, $log_file) {
         }
 
         http_response_code(200);
-        echo json_encode(['success' => true, 'supporter' => $name, 'monthly' => $new_monthly], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => true, 'supporter' => $name, 'monthly' => round($new_monthly, 2)], JSON_UNESCAPED_UNICODE);
     });
 }
 
@@ -350,7 +366,7 @@ function handle_refund($data, $csv_file, $lock_file, $log_file) {
         }
 
         http_response_code(200);
-        echo json_encode(['success' => true, 'supporter' => $name, 'refunded' => $refund_amount], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => true, 'supporter' => $name, 'refunded' => round($refund_amount, 2)], JSON_UNESCAPED_UNICODE);
     });
 }
 
