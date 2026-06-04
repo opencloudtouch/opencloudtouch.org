@@ -1,0 +1,28 @@
+{
+  "data": {
+    "id": 88888,
+    "amount": 5,
+    "object": "recurring_donation",
+    "paused": "false",
+    "status": "active",
+    "canceled": "false",
+    "currency": "EUR",
+    "started_at": 1717459200,
+    "canceled_at": null,
+    "note_hidden": false,
+    "support_note": "Monthly test",
+    "supporter_id": 99999,
+    "duration_type": "month",
+    "supporter_name": "Integration Test",
+    "supporter_email": "test@example.com",
+    "current_period_end": 1720051200,
+    "supporter_feedback": null,
+    "cancel_at_period_end": "false",
+    "current_period_start": 1717459200
+  },
+  "type": "recurring_donation.started",
+  "event_id": 888888,
+  "live_mode": false,
+  "attempt": 1,
+  "created": 1717459200
+}

@@ -118,6 +118,11 @@ function read_supporters($csv_file) {
 }
 
 function write_supporters($supporters, $csv_file) {
+    // Remove supporters with zero contributions (refunded everything)
+    $supporters = array_filter($supporters, function($s) {
+        return round($s['amount'], 2) > 0 || round($s['monthly'], 2) > 0;
+    });
+
     uasort($supporters, function($a, $b) {
         $totalA = $a['amount'] + $a['monthly'];
         $totalB = $b['amount'] + $b['monthly'];
@@ -128,14 +133,16 @@ function write_supporters($supporters, $csv_file) {
     });
 
     $fp = fopen($csv_file, 'w');
+    // Write UTF-8 BOM
+    fwrite($fp, "\xEF\xBB\xBF");
     fputcsv($fp, ['name', 'type', 'amount', 'monthlyAmount', 'firstSupportDate']);
 
     foreach ($supporters as $n => $s) {
         fputcsv($fp, [
             $n,
             $s['type'],
-            $s['amount'],
-            $s['monthly'],
+            round($s['amount'], 2),
+            round($s['monthly'], 2),
             $s['date']
         ]);
     }
@@ -397,8 +404,7 @@ $refund = [
 $result = process_event($refund, $csv, $log);
 
 $supporters = read_supporters($csv);
-assert_equals(0.0, $supporters['Siggi']['amount'] ?? -1, 'After full refund: amount = 0');
-assert_equals('one-time', $supporters['Siggi']['type'] ?? '', 'After refund: type unchanged');
+assert_false(isset($supporters['Siggi']), 'After full refund: supporter removed from CSV');
 
 echo "\n";
 
@@ -424,7 +430,7 @@ $refund = [
 process_event($refund, $csv, $log);
 
 $supporters = read_supporters($csv);
-assert_equals(0.0, $supporters['Siggi']['amount'] ?? -1, 'Over-refund clamped to 0');
+assert_false(isset($supporters['Siggi']), 'Over-refund: supporter removed from CSV');
 
 echo "\n";
 
@@ -610,6 +616,184 @@ $invalid_sig = 'deadbeef0000';
 
 assert_true(hash_equals($valid_sig, hash_hmac('sha256', $payload, BMC_WEBHOOK_SECRET)), 'Valid signature matches');
 assert_false(hash_equals($invalid_sig, $valid_sig), 'Invalid signature rejected');
+
+echo "\n";
+
+// ----------------------------------------
+// TEST 17: Zero-Amount Supporters Removed from CSV
+// ----------------------------------------
+echo "--- Test: Zero-Amount Removal ---\n";
+
+$csv = $test_dir . '/test17.csv';
+$log = $test_dir . '/test17.log';
+
+// Create supporter via donation
+process_event([
+    'type' => 'donation.created',
+    'live_mode' => false,
+    'data' => [
+        'supporter_name' => 'Refund Rudi',
+        'total_amount_charged' => '5.00',
+        'currency' => 'EUR',
+        'created_at' => 1717459200,
+    ],
+], $csv, $log);
+
+$supporters = read_supporters($csv);
+assert_true(isset($supporters['Refund Rudi']), 'Refund Rudi exists after donation');
+assert_equals(5.0, $supporters['Refund Rudi']['amount'], 'Refund Rudi amount=5');
+
+// Refund the full amount
+process_event([
+    'type' => 'donation.refunded',
+    'live_mode' => false,
+    'data' => [
+        'supporter_name' => 'Refund Rudi',
+        'total_amount_charged' => '5.00',
+        'currency' => 'EUR',
+    ],
+], $csv, $log);
+
+$supporters = read_supporters($csv);
+assert_false(isset($supporters['Refund Rudi']), 'Refund Rudi removed after full refund (amount=0, monthly=0)');
+
+echo "\n";
+
+// ----------------------------------------
+// TEST 18: Accumulated Amounts Rounded to 2 Decimals in CSV
+// ----------------------------------------
+echo "--- Test: CSV Amount Rounding ---\n";
+
+$csv = $test_dir . '/test18.csv';
+$log = $test_dir . '/test18.log';
+
+// 3 small donations causing floating-point drift (0.1+0.1+0.1 = 0.30000000000000004)
+$event = [
+    'type' => 'donation.created',
+    'live_mode' => false,
+    'data' => [
+        'supporter_name' => 'Round Robin',
+        'total_amount_charged' => '0.10',
+        'currency' => 'EUR',
+        'created_at' => 1717459200,
+    ],
+];
+process_event($event, $csv, $log);
+process_event($event, $csv, $log);
+process_event($event, $csv, $log);
+
+// Read raw CSV to check actual written values (not parsed floats)
+$csv_raw = file_get_contents($csv);
+$bom = pack('H*', 'EFBBBF');
+if (substr($csv_raw, 0, 3) === $bom) {
+    $csv_raw = substr($csv_raw, 3);
+}
+preg_match('/"?Round Robin"?,one-time,([0-9.]+),/', $csv_raw, $m);
+assert_equals('0.3', $m[1] ?? null, 'CSV amount is 0.3 not 0.30000000000000004');
+
+echo "\n";
+
+// ----------------------------------------
+// TEST 19: CSV Starts with UTF-8 BOM
+// ----------------------------------------
+echo "--- Test: CSV UTF-8 BOM ---\n";
+
+// Re-use test18's csv which was just written
+$raw = file_get_contents($csv);
+$first3 = bin2hex(substr($raw, 0, 3));
+assert_equals('efbbbf', $first3, 'CSV starts with UTF-8 BOM (EF BB BF)');
+
+echo "\n";
+
+// ----------------------------------------
+// TEST 20: Complex Subscription Lifecycle
+// subscribe -> pay -> pay -> cancel -> subscribe again -> cancel -> partial refund -> full refund
+// ----------------------------------------
+echo "--- Test: Complex Subscription Lifecycle ---\n";
+
+$csv = $test_dir . '/test20.csv';
+$log = $test_dir . '/test20.log';
+
+// Step 1: First subscription - donation.created (first payment €5)
+process_event([
+    'type' => 'donation.created', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '5.00', 'currency' => 'EUR', 'created_at' => 1717459200],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(5.0, $s['Lifecycle Lisa']['amount'], 'Step 1: first payment amount=5');
+assert_equals('one-time', $s['Lifecycle Lisa']['type'], 'Step 1: type=one-time (before started event)');
+
+// Step 2: recurring_donation.started
+process_event([
+    'type' => 'recurring_donation.started', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa', 'amount' => 5, 'currency' => 'EUR', 'started_at' => 1717459200],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(5.0, $s['Lifecycle Lisa']['amount'], 'Step 2: amount unchanged at 5');
+assert_equals(5.0, $s['Lifecycle Lisa']['monthly'], 'Step 2: monthly=5');
+assert_equals('monthly', $s['Lifecycle Lisa']['type'], 'Step 2: type=monthly');
+
+// Step 3: Second month payment (donation.created again)
+process_event([
+    'type' => 'donation.created', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '5.00', 'currency' => 'EUR', 'created_at' => 1720137600],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(10.0, $s['Lifecycle Lisa']['amount'], 'Step 3: amount accumulated to 10');
+assert_equals(5.0, $s['Lifecycle Lisa']['monthly'], 'Step 3: monthly still 5');
+
+// Step 4: Cancel subscription
+process_event([
+    'type' => 'recurring_donation.cancelled', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa'],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(10.0, $s['Lifecycle Lisa']['amount'], 'Step 4: cancel keeps amount=10');
+assert_equals(0.0, $s['Lifecycle Lisa']['monthly'], 'Step 4: monthly zeroed');
+assert_equals('one-time', $s['Lifecycle Lisa']['type'], 'Step 4: type back to one-time');
+
+// Step 5: New subscription at different rate (donation.created €3)
+process_event([
+    'type' => 'donation.created', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '3.00', 'currency' => 'EUR', 'created_at' => 1722729600],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(13.0, $s['Lifecycle Lisa']['amount'], 'Step 5: amount accumulated to 13');
+
+// Step 6: recurring_donation.started at new rate
+process_event([
+    'type' => 'recurring_donation.started', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa', 'amount' => 3, 'currency' => 'EUR', 'started_at' => 1722729600],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(3.0, $s['Lifecycle Lisa']['monthly'], 'Step 6: monthly=3 (new rate)');
+assert_equals('monthly', $s['Lifecycle Lisa']['type'], 'Step 6: type=monthly again');
+
+// Step 7: Cancel again
+process_event([
+    'type' => 'recurring_donation.cancelled', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa'],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(13.0, $s['Lifecycle Lisa']['amount'], 'Step 7: cancel keeps amount=13');
+assert_equals(0.0, $s['Lifecycle Lisa']['monthly'], 'Step 7: monthly zeroed again');
+
+// Step 8: Partial refund (€5 of €13)
+process_event([
+    'type' => 'donation.refunded', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '5.00', 'currency' => 'EUR'],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_equals(8.0, $s['Lifecycle Lisa']['amount'], 'Step 8: partial refund, amount=8');
+assert_true(isset($s['Lifecycle Lisa']), 'Step 8: supporter still exists (amount>0)');
+
+// Step 9: Full refund of remaining €8
+process_event([
+    'type' => 'donation.refunded', 'live_mode' => false,
+    'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '8.00', 'currency' => 'EUR'],
+], $csv, $log);
+$s = read_supporters($csv);
+assert_false(isset($s['Lifecycle Lisa']), 'Step 9: supporter removed after full refund');
 
 echo "\n";
 

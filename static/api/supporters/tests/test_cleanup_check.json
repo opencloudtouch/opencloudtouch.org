@@ -1,0 +1,23 @@
+{
+  "data": {
+    "id": 55555,
+    "amount": 0,
+    "object": "payment",
+    "status": "succeeded",
+    "currency": "EUR",
+    "created_at": 1717545600,
+    "coffee_count": 0,
+    "coffee_price": "0",
+    "supporter_name": "Integration Test",
+    "supporter_id": 99999,
+    "total_amount_charged": "0.00",
+    "supporter_email": "test@example.com",
+    "note_hidden": "false",
+    "support_note": "Cleanup - zero donation to verify state"
+  },
+  "type": "donation.created",
+  "event_id": 555555,
+  "live_mode": false,
+  "attempt": 1,
+  "created": 1717545600
+}

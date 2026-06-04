@@ -1,0 +1,23 @@
+{
+  "data": {
+    "id": 99999,
+    "amount": 3,
+    "object": "payment",
+    "status": "succeeded",
+    "currency": "EUR",
+    "created_at": 1717459200,
+    "coffee_count": 1,
+    "coffee_price": "3.0000",
+    "supporter_name": "Integration Test",
+    "supporter_id": 99999,
+    "total_amount_charged": "3.00",
+    "supporter_email": "test@example.com",
+    "note_hidden": "false",
+    "support_note": "Automated integration test"
+  },
+  "type": "donation.created",
+  "event_id": 999999,
+  "live_mode": false,
+  "attempt": 1,
+  "created": 1717459200
+}

@@ -1,0 +1,21 @@
+{
+  "data": {
+    "id": 88888,
+    "amount": 5,
+    "object": "recurring_donation",
+    "status": "canceled",
+    "canceled": "true",
+    "currency": "EUR",
+    "started_at": 1717459200,
+    "canceled_at": 1717545600,
+    "supporter_id": 99999,
+    "supporter_name": "Integration Test",
+    "supporter_email": "test@example.com",
+    "supporter_feedback": "Just testing cancellation"
+  },
+  "type": "recurring_donation.cancelled",
+  "event_id": 777777,
+  "live_mode": false,
+  "attempt": 1,
+  "created": 1717545600
+}
