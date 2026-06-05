@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Supporters CSV Upload Endpoint
  * Protected with HTTP Basic Auth
@@ -42,25 +42,25 @@ for ($i = 1; $i < count($lines); $i++) {
     if (empty(trim($lines[$i]))) {
         continue;
     }
-    
+
     $row = str_getcsv($lines[$i]);
     if (count($row) !== 5) {
         http_response_code(400);
         die(sprintf('Invalid CSV: row %d has %d columns (expected 5)', $i + 1, count($row)));
     }
-    
+
     // Validate type
     if (!in_array($row[1], ['monthly', 'one-time'])) {
         http_response_code(400);
         die(sprintf('Invalid CSV: row %d has invalid type "%s" (must be "monthly" or "one-time")', $i + 1, $row[1]));
     }
-    
+
     // Validate amounts are numeric
     if (!is_numeric($row[2]) || !is_numeric($row[3])) {
         http_response_code(400);
         die(sprintf('Invalid CSV: row %d has non-numeric amounts', $i + 1));
     }
-    
+
     // Validate date format (YYYY-MM-DD)
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $row[4])) {
         http_response_code(400);
