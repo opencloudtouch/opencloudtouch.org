@@ -40,7 +40,9 @@ OpenCloudTouch intercepts the speaker's cloud calls by acting as a local replace
 | Backend | Python (FastAPI) | REST API, speaker communication, SSDP discovery |
 | Frontend | React (TypeScript) | Web-based control interface |
 | Database | SQLite | Preset storage, speaker registry |
-| Container | Docker | Deployment and isolation || Raspberry Pi Image | Pre-built OS image | Ready-to-flash image with everything pre-configured |
+| Container | Docker | Deployment and isolation |
+| Raspberry Pi Image | Pre-built OS image | Ready-to-flash image with everything pre-configured |
+
 ## Network Requirements
 
 OpenCloudTouch needs to be on the **same network segment** as your speakers. It uses:

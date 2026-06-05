@@ -31,7 +31,7 @@ Der Dienst startet standardmäßig auf Port **7777**.
 
 OpenCloudTouch erkennt SoundTouch-Lautsprecher in deinem Netzwerk automatisch per SSDP-Multicast. Öffne die Web-Oberfläche:
 
-```
+```text
 http://<deine-host-ip>:7777
 ```
 
@@ -40,6 +40,7 @@ Deine Lautsprecher sollten innerhalb weniger Sekunden erscheinen.
 ## 3. Presets & Radio konfigurieren
 
 Nutze die Web-Oberfläche um:
+
 - **Presets** (1–6) deinen Lieblingsstationen zuzuweisen
 - **Internetradio**-Stationen zu durchsuchen und hinzuzufügen
 - **Multi-Room-Gruppen** (Zonen) zu erstellen

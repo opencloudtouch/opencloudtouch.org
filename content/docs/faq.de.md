@@ -52,28 +52,34 @@ Du solltest nur eine Instanz pro Netzwerk betreiben. Mehrere Instanzen konkurrie
 ## Fehlerbehebung
 
 {{< details title="Meine Lautsprecher werden nicht angezeigt" >}}
+
 1. Stelle sicher dass OpenCloudTouch und deine Lautsprecher im **selben Subnetz** sind
 2. Prüfe ob Multicast-Traffic (UDP 1900) nicht von deinem Router/Firewall blockiert wird
 3. Bei Docker Desktop auf macOS/Windows funktioniert Multicast nicht in der VM — siehe [Netzwerkkonfiguration]({{< ref "/docs/network-config" >}})
 4. Versuche deine Lautsprecher neu zu starten (10 Sekunden vom Strom trennen)
 5. Wenn die automatische Erkennung nicht funktioniert, kannst du Lautsprecher-IPs manuell in der OpenCloudTouch Web-Oberfläche hinzufügen
+
 {{< /details >}}
 
 {{< details title="Presets werden nicht gespeichert" >}}
 Prüfe ob das Daten-Volume in Docker korrekt gemountet ist. Ohne persistenten Speicher gehen Presets bei Container-Neustart verloren:
+
 ```bash
-docker run -v opencloudtouch-data:/data ...
+docker run -v oct-data:/data ...
 ```
+
 {{< /details >}}
 
 ## Mitmachen
 
 {{< details title="Wie kann ich helfen?" >}}
+
 - [Einen Bug melden](https://github.com/opencloudtouch/opencloudtouch/issues/new?template=bug_report.yml)
 - [Ein Feature vorschlagen](https://github.com/opencloudtouch/opencloudtouch/issues/new?template=feature_request.yml)
 - Ideen diskutieren in [GitHub Discussions](https://github.com/opencloudtouch/opencloudtouch/discussions)
 - Pull Requests einreichen — siehe den Contributing Guide im Repository
 - Mit verschiedenen Lautsprechermodellen testen und Kompatibilität melden
+
 {{< /details >}}
 
 {{< details title="Ich habe ein Sicherheitsproblem gefunden" >}}

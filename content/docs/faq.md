@@ -52,28 +52,34 @@ You should only run one instance per network. Multiple instances will compete fo
 ## Troubleshooting
 
 {{< details title="My speakers are not showing up" >}}
+
 1. Make sure OpenCloudTouch and your speakers are on the **same subnet**
 2. Check that multicast traffic (UDP 1900) is not blocked by your router/firewall
 3. If using Docker Desktop on macOS/Windows, multicast doesn't work in the VM — see [Network Configuration]({{< ref "/docs/network-config" >}})
 4. Try restarting your speakers (unplug for 10 seconds)
 5. If automatic discovery doesn't work, you can add speaker IPs manually in the OpenCloudTouch web interface
+
 {{< /details >}}
 
 {{< details title="Presets are not saving" >}}
 Check that the data volume is mounted correctly in Docker. Without persistent storage, presets are lost on container restart:
+
 ```bash
 docker run -v oct-data:/data ...
 ```
+
 {{< /details >}}
 
 ## Contributing
 
 {{< details title="How can I help?" >}}
+
 - [Report a bug](https://github.com/opencloudtouch/opencloudtouch/issues/new?template=bug_report.yml)
 - [Request a feature](https://github.com/opencloudtouch/opencloudtouch/issues/new?template=feature_request.yml)
 - Discuss ideas in [GitHub Discussions](https://github.com/opencloudtouch/opencloudtouch/discussions)
 - Submit pull requests — check the contributing guide in the repository
 - Test with different speaker models and report compatibility
+
 {{< /details >}}
 
 {{< details title="I found a security issue" >}}
