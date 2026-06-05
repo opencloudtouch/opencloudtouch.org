@@ -51,11 +51,6 @@ function assertContains($needle, $haystack, $message) {
 // LOAD FUNCTIONS FROM webhook.php (without executing main flow)
 // ========================================
 
-// We need to extract the functions. Since webhook.php reads php://input,
-// we include the functions directly here for unit testing.
-
-mb_internal_encoding('UTF-8');
-
 // Mock paths — use temp directory
 $test_dir = sys_get_temp_dir() . '/oct-webhook-test-' . uniqid();
 mkdir($test_dir, 0755, true);
@@ -66,91 +61,8 @@ if (!defined('BMC_WEBHOOK_SECRET')) {
     define('BMC_WEBHOOK_SECRET', 'test_secret_for_unit_tests');
 }
 
-// ---- Include functions from webhook.php ----
-
-function convertToEur($amount, $currency, $date) {
-    if ($currency === 'EUR') {
-        return (float)$amount;
-    }
-
-    $usdToEur = [
-        '2026-06-02' => 0.8588,
-        '2026-06-01' => 0.8588,
-        '2026-05-28' => 0.8560,
-        '2026-05-10' => 0.8500,
-    ];
-
-    if ($currency === 'USD') {
-        $rate = $usdToEur[$date] ?? 0.85;
-        return round($amount * $rate, 2);
-    }
-
-    return (float)$amount;
-}
-
-function readSupporters($csv_file) {
-    $supporters = [];
-    if (!file_exists($csv_file)) {
-        return $supporters;
-    }
-
-    $csv_content = file_get_contents($csv_file);
-
-    $bom = pack('H*', 'EFBBBF');
-    if (substr($csv_content, 0, 3) === $bom) {
-        $csv_content = substr($csv_content, 3);
-    }
-
-    $lines = array_filter(array_map('trim', explode("\n", $csv_content)));
-    array_shift($lines);
-
-    foreach ($lines as $line) {
-        $row = str_getcsv($line);
-        if (count($row) >= 5) {
-            $supporters[$row[0]] = [
-                'type' => $row[1],
-                'amount' => (float)$row[2],
-                'monthly' => (float)$row[3],
-                'date' => $row[4]
-            ];
-        }
-    }
-
-    return $supporters;
-}
-
-function writeSupporters($supporters, $csv_file) {
-    // Remove supporters with zero contributions (refunded everything)
-    $supporters = array_filter($supporters, function($s) {
-        return round($s['amount'], 2) > 0 || round($s['monthly'], 2) > 0;
-    });
-
-    uasort($supporters, function($a, $b) {
-        $totalA = $a['amount'] + $a['monthly'];
-        $totalB = $b['amount'] + $b['monthly'];
-        if ($totalA !== $totalB) {
-            return $totalB <=> $totalA;
-        }
-        return $a['date'] <=> $b['date'];
-    });
-
-    $fp = fopen($csv_file, 'w');
-    // Write UTF-8 BOM
-    fwrite($fp, "\xEF\xBB\xBF");
-    fputcsv($fp, ['name', 'type', 'amount', 'monthlyAmount', 'firstSupportDate']);
-
-    foreach ($supporters as $n => $s) {
-        fputcsv($fp, [
-            $n,
-            $s['type'],
-            round($s['amount'], 2),
-            round($s['monthly'], 2),
-            $s['date']
-        ]);
-    }
-
-    fclose($fp);
-}
+// Load shared functions (convertToEur, readSupporters, writeSupporters)
+require_once __DIR__ . '/functions.php';
 
 /**
  * Process a webhook event against a test CSV.
@@ -503,47 +415,41 @@ assertEquals(10.0, $supporters['TestUser']['amount'] ?? -1, 'Amount read correct
 echo "\n";
 
 // ----------------------------------------
-// TEST 10: CSV Sorting
+// TEST 10 & 11: CSV Sorting
 // ----------------------------------------
+
+function assertSortOrder($inputSupporters, $expectedNames, $csvFile, $testLabel) {
+    writeSupporters($inputSupporters, $csvFile);
+    $sorted = readSupporters($csvFile);
+    $names = array_keys($sorted);
+    for ($i = 0; $i < count($expectedNames); $i++) {
+        assertEquals($expectedNames[$i], $names[$i] ?? null, "$testLabel: position $i = {$expectedNames[$i]}");
+    }
+}
+
 echo "--- Test: CSV Sorting ---\n";
-
-$csv = $test_dir . '/test10.csv';
-$log = $test_dir . '/test10.log';
-
-// Add supporters with different amounts
-$supporters = [
-    'Small' => ['type' => 'one-time', 'amount' => 5, 'monthly' => 0, 'date' => '2026-05-01'],
-    'Big' => ['type' => 'one-time', 'amount' => 30, 'monthly' => 0, 'date' => '2026-05-02'],
-    'Medium' => ['type' => 'one-time', 'amount' => 15, 'monthly' => 0, 'date' => '2026-05-03'],
-];
-writeSupporters($supporters, $csv);
-$sorted = readSupporters($csv);
-$names = array_keys($sorted);
-
-assertEquals('Big', $names[0], 'First supporter = Big (30€)');
-assertEquals('Medium', $names[1], 'Second supporter = Medium (15€)');
-assertEquals('Small', $names[2], 'Third supporter = Small (5€)');
-
+assertSortOrder(
+    [
+        'Small' => ['type' => 'one-time', 'amount' => 5, 'monthly' => 0, 'date' => '2026-05-01'],
+        'Big' => ['type' => 'one-time', 'amount' => 30, 'monthly' => 0, 'date' => '2026-05-02'],
+        'Medium' => ['type' => 'one-time', 'amount' => 15, 'monthly' => 0, 'date' => '2026-05-03'],
+    ],
+    ['Big', 'Medium', 'Small'],
+    $test_dir . '/test10.csv',
+    'Sort by amount DESC'
+);
 echo "\n";
 
-// ----------------------------------------
-// TEST 11: Sorting with equal amounts (date ASC)
-// ----------------------------------------
 echo "--- Test: Sorting Equal Amounts by Date ASC ---\n";
-
-$csv = $test_dir . '/test11.csv';
-
-$supporters = [
-    'Late' => ['type' => 'one-time', 'amount' => 10, 'monthly' => 0, 'date' => '2026-06-01'],
-    'Early' => ['type' => 'one-time', 'amount' => 10, 'monthly' => 0, 'date' => '2026-05-01'],
-];
-writeSupporters($supporters, $csv);
-$sorted = readSupporters($csv);
-$names = array_keys($sorted);
-
-assertEquals('Early', $names[0], 'Same amount → earlier date first');
-assertEquals('Late', $names[1], 'Same amount → later date second');
-
+assertSortOrder(
+    [
+        'Late' => ['type' => 'one-time', 'amount' => 10, 'monthly' => 0, 'date' => '2026-06-01'],
+        'Early' => ['type' => 'one-time', 'amount' => 10, 'monthly' => 0, 'date' => '2026-05-01'],
+    ],
+    ['Early', 'Late'],
+    $test_dir . '/test11.csv',
+    'Same amount, sort by date ASC'
+);
 echo "\n";
 
 // ----------------------------------------

@@ -27,40 +27,47 @@ function Assert-Response {
     }
 }
 
+function Test-WebhookEvent {
+    param(
+        [string]$TestName,
+        [string]$JsonFile,
+        [hashtable[]]$Assertions
+    )
+    Write-Host "--- $TestName ---" -ForegroundColor Yellow
+    $f = Join-Path $testsDir $JsonFile
+    $r = curl.exe -s -X POST "$BaseUrl/webhook.php" -H "Content-Type: application/json" -d "@$f" 2>&1
+    foreach ($a in $Assertions) {
+        Assert-Response $r $a.Expected $a.Description
+    }
+    Write-Host ""
+}
+
 Write-Host "=== Integration Tests: $BaseUrl ===" -ForegroundColor Cyan
 Write-Host ""
 
 # --- Test 1: donation.created ---
-Write-Host "--- Test 1: donation.created ---" -ForegroundColor Yellow
-$f = Join-Path $testsDir "test_donation.json"
-$r = curl.exe -s -X POST "$BaseUrl/webhook.php" -H "Content-Type: application/json" -d "@$f" 2>&1
-Assert-Response $r '"success":true' "donation.created returns success"
-Assert-Response $r "Integration Test" "Supporter name in response"
-Write-Host ""
+Test-WebhookEvent "Test 1: donation.created" "test_donation.json" @(
+    @{ Expected = '"success":true'; Description = "donation.created returns success" },
+    @{ Expected = "Integration Test"; Description = "Supporter name in response" }
+)
 
 # --- Test 2: recurring_donation.started ---
-Write-Host "--- Test 2: recurring_donation.started ---" -ForegroundColor Yellow
-$f = Join-Path $testsDir "test_subscription_started.json"
-$r = curl.exe -s -X POST "$BaseUrl/webhook.php" -H "Content-Type: application/json" -d "@$f" 2>&1
-Assert-Response $r '"success":true' "subscription.started returns success"
-Assert-Response $r "monthly" "Monthly rate in response"
-Write-Host ""
+Test-WebhookEvent "Test 2: recurring_donation.started" "test_subscription_started.json" @(
+    @{ Expected = '"success":true'; Description = "subscription.started returns success" },
+    @{ Expected = "monthly"; Description = "Monthly rate in response" }
+)
 
 # --- Test 3: recurring_donation.cancelled ---
-Write-Host "--- Test 3: recurring_donation.cancelled ---" -ForegroundColor Yellow
-$f = Join-Path $testsDir "test_subscription_cancelled.json"
-$r = curl.exe -s -X POST "$BaseUrl/webhook.php" -H "Content-Type: application/json" -d "@$f" 2>&1
-Assert-Response $r '"success":true' "subscription.cancelled returns success"
-Assert-Response $r "cancelled" "Action=cancelled in response"
-Write-Host ""
+Test-WebhookEvent "Test 3: recurring_donation.cancelled" "test_subscription_cancelled.json" @(
+    @{ Expected = '"success":true'; Description = "subscription.cancelled returns success" },
+    @{ Expected = "cancelled"; Description = "Action=cancelled in response" }
+)
 
 # --- Test 4: donation.refunded ---
-Write-Host "--- Test 4: donation.refunded ---" -ForegroundColor Yellow
-$f = Join-Path $testsDir "test_refund.json"
-$r = curl.exe -s -X POST "$BaseUrl/webhook.php" -H "Content-Type: application/json" -d "@$f" 2>&1
-Assert-Response $r '"success":true' "refund returns success"
-Assert-Response $r "refunded" "Refunded amount in response"
-Write-Host ""
+Test-WebhookEvent "Test 4: donation.refunded" "test_refund.json" @(
+    @{ Expected = '"success":true'; Description = "refund returns success" },
+    @{ Expected = "refunded"; Description = "Refunded amount in response" }
+)
 
 # --- Test 5: Invalid JSON ---
 Write-Host "--- Test 5: Error Handling ---" -ForegroundColor Yellow
