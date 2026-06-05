@@ -1,0 +1,11 @@
+# PII Allowlist
+# =============
+# Each line contains a SHA-256 hash of a PII finding that has been reviewed
+# and approved as a false positive or intentional.
+#
+# Format: <sha256-hash> # <optional comment explaining why it's allowed>
+#
+# To get the hash for a finding, run the CI pipeline — it prints the hash
+# for each detected pattern. Copy the hash here to suppress it.
+#
+# NEVER add a hash without reviewing the actual finding first!

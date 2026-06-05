@@ -1,10 +1,10 @@
-{
+﻿{
   "data": {
     "id": 14421406,
     "amount": 5,
     "object": "payment",
     "status": "succeeded",
-    "message": "Siggi became a supporter.",
+    "message": "Alex became a supporter.",
     "currency": "EUR",
     "refunded": "false",
     "created_at": 1780394550,
@@ -15,10 +15,10 @@
     "support_note": "Dein Programm hat meine 5 Bose Soundtouch Boxen gerettet - vielen Dank dafür",
     "support_type": "Supporter",
     "supporter_id": 10815174,
-    "supporter_name": "Siggi",
+    "supporter_name": "Alex",
     "transaction_id": "pi_3Tdp9PJRHVLVJ5LA0Eti2Zxx",
     "application_fee": "0.25",
-    "supporter_email": "siggiaze@gmail.com",
+    "supporter_email": "alex@example.com",
     "supporter_name_type": "default",
     "total_amount_charged": "5.00"
   },

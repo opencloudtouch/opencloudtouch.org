@@ -1,10 +1,10 @@
-{
+﻿{
   "data": {
     "id": 14422721,
     "amount": 1,
     "object": "payment",
     "status": "succeeded",
-    "message": "Siggi became a supporter.",
+    "message": "Alex became a supporter.",
     "currency": "EUR",
     "refunded": "false",
     "created_at": 1780405113,
@@ -15,10 +15,10 @@
     "support_note": "Ja das ist mal ein tolles Projekt. Vielen Dank dafür",
     "support_type": "Supporter",
     "supporter_id": 10815174,
-    "supporter_name": "Siggi",
+    "supporter_name": "Alex",
     "transaction_id": "pi_3TdrtmJRHVLVJ5LA1RuWxKTQ",
     "application_fee": "0.05",
-    "supporter_email": "siggiaze@gmail.com",
+    "supporter_email": "alex@example.com",
     "supporter_name_type": "default",
     "total_amount_charged": "1.00"
   },

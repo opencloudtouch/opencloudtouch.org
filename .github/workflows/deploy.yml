@@ -1,11 +1,120 @@
-name: Deploy Website
+name: CI
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # --- PII Scanner ---
+      - name: Scan for PII leaks
+        run: |
+          echo "🔍 Scanning for PII patterns..."
+          ALLOWLIST=".pii-allowlist"
+          FOUND=0
+
+          # Patterns: email-like strings that aren't example.com/example.org/localhost
+          # Also catches phone numbers, specific name patterns
+          PATTERNS='[a-zA-Z0-9._%+-]+@(?!example\.(com|org|net)|localhost)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+
+          while IFS= read -r file; do
+            # Skip binary files, the allowlist itself, and .git
+            [[ "$file" == *.png ]] || [[ "$file" == *.jpg ]] || [[ "$file" == *.svg ]] || [[ "$file" == *.woff* ]] || [[ "$file" == *.ttf ]] && continue
+            [[ "$file" == "$ALLOWLIST" ]] && continue
+            [[ "$file" == .git/* ]] && continue
+
+            while IFS=: read -r lineno match; do
+              # Compute SHA-256 of the finding (file:line:match)
+              HASH=$(echo -n "${file}:${lineno}:${match}" | sha256sum | cut -d' ' -f1)
+
+              # Check allowlist
+              if [ -f "$ALLOWLIST" ] && grep -q "^${HASH}" "$ALLOWLIST"; then
+                echo "  ⏭️  Allowed: ${file}:${lineno} (hash: ${HASH:0:12}...)"
+                continue
+              fi
+
+              echo "  ❌ PII found: ${file}:${lineno}: ${match}"
+              echo "     Hash to allow: ${HASH}"
+              FOUND=$((FOUND + 1))
+            done < <(grep -nPo "$PATTERNS" "$file" 2>/dev/null || true)
+          done < <(git ls-files)
+
+          if [ $FOUND -gt 0 ]; then
+            echo ""
+            echo "❌ Found $FOUND PII pattern(s). Add hash(es) to .pii-allowlist to suppress false positives."
+            exit 1
+          fi
+          echo "✅ No PII leaks found."
+
+      # --- Hugo Build ---
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: 'latest'
+          extended: true
+
+      - name: Build Hugo site
+        run: hugo --minify
+
+      # --- Markdown Lint ---
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: 'content/**/*.md'
+          config: '.markdownlint.jsonc'
+
+      # --- PHP Lint ---
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: PHP syntax check
+        run: |
+          echo "🔍 Checking PHP syntax..."
+          ERRORS=0
+          for f in $(find static/api -name '*.php'); do
+            if ! php -l "$f" 2>&1 | grep -q "No syntax errors"; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "❌ PHP syntax errors found"
+            exit 1
+          fi
+          echo "✅ All PHP files valid"
+
+      # --- PHP Formatter (check only) ---
+      - name: Install PHP-CS-Fixer
+        run: |
+          curl -fsSL https://cs.symfony.com/download/php-cs-fixer-v3.phar -o php-cs-fixer
+          chmod +x php-cs-fixer
+
+      - name: Check PHP formatting
+        run: |
+          ./php-cs-fixer fix static/api --dry-run --diff --rules=@PSR12 || {
+            echo "❌ PHP formatting issues found. Run 'php-cs-fixer fix static/api --rules=@PSR12' locally."
+            exit 1
+          }
+
+      # --- PHP Tests ---
+      - name: Run PHP tests
+        run: |
+          echo "🧪 Running webhook tests..."
+          cd static/api/supporters
+          php test-webhook.php
+
   deploy:
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

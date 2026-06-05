@@ -1,4 +1,4 @@
-# BuyMeACoffee Webhook Integration — Complete Handover
+﻿# BuyMeACoffee Webhook Integration — Complete Handover
 
 **Project:** OpenCloudTouch Supporter Recognition System  
 **Date:** 2026-06-02  
@@ -82,7 +82,7 @@
 ```csv
 name,type,amount,monthlyAmount,firstSupportDate
 Siggi,one-time,5,0,2026-06-02
-Grünwald Almöhü,one-time,1,0,2026-06-02
+Jamie Smith,one-time,1,0,2026-06-02
 Stephan,monthly,0,20,2026-05-20
 ```
 
@@ -173,7 +173,7 @@ Harald,one-time,5,0,2026-05-11
 "Victor R.",one-time,5,0,2026-05-18
 Christoph,one-time,5,0,2026-05-31
 Ingo,one-time,5,0,2026-05-16
-"Grünwald Almöhü",monthly,1,1,2026-06-02
+"Jamie Smith",monthly,1,1,2026-06-02
  
 ```
 
@@ -196,8 +196,8 @@ Ingo,one-time,5,0,2026-05-16
   "supporters": [
     {
       "supporter_id": 10815174,
-      "name": "Siggi",
-      "email": "siggiaze@gmail.com",
+      "name": "Alex",
+      "email": "alex@example.com",
       "total_amount": 8.00,
       "monthly_amount": 0,
       "first_support_date": "2026-06-02",
@@ -242,7 +242,7 @@ Ingo,one-time,5,0,2026-05-16
 
 **Evidence:**
 ```json
-"﻿{"success":true,"supporter":"Grünwald Almöhü","type":"one-time"}"
+"﻿{"success":true,"supporter":"Jamie Smith","type":"one-time"}"
 ```
 
 **Root Cause:**
@@ -285,13 +285,13 @@ $content = ltrim(file_get_contents($csvPath), "\xEF\xBB\xBF");
 
 **Evidence:**
 ```json
-"supporter": "Grünwald Almöhü"  // In BMC's request (correct)
+"supporter": "Jamie Smith"  // In BMC's request (correct)
 "Gr\\u00fcnwald Alm\\u00f6h\\u00fc" // In our JSON response (escaped)
 "Gr\\u00fcnwald Alm\\u00f6h\\u00fc" // In BMC's webhook log (double-escaped?)
 ```
 
 **Root Cause:**
-- BMC sends proper UTF-8: `Grünwald Almöhü`
+- BMC sends proper UTF-8: `Jamie Smith`
 - PHP `json_encode()` escapes by default: `"Gr\u00fcnwald Alm\u00f6h\u00fc"` (single backslash in source)
 - BMC's webhook log escapes the backslashes again when rendering: `"Gr\\u00fcnwald..."`
 
@@ -305,7 +305,7 @@ $response = [
 ];
 echo json_encode($response, JSON_UNESCAPED_UNICODE);
 
-// Output: {"success":true,"supporter":"Grünwald Almöhü","type":"one-time"}
+// Output: {"success":true,"supporter":"Jamie Smith","type":"one-time"}
 ```
 
 **Lesson:** Always use `JSON_UNESCAPED_UNICODE` when returning non-ASCII names to external services.
@@ -321,7 +321,7 @@ echo json_encode($response, JSON_UNESCAPED_UNICODE);
 {
   "data": {
     "supporter_id": 10815174,      // SAME for all 5 donations
-    "supporter_name": "Siggi",     // SAME
+    "supporter_name": "Alex",     // SAME
     "total_amount_charged": "1.00" // ONLY the current donation!
   }
 }
@@ -426,7 +426,7 @@ if (!hash_equals($expectedSignature, $signature)) {
 ```
 
 **Signature Validation Failed Example:**
-- Event 580796 (Siggi, €5) returned `{"error":"Invalid signature"}`
+- Event 580796 (Alex, €5) returned `{"error":"Invalid signature"}`
 - **Cause:** Unknown — possibly BMC retry with stale signature?
 - **Impact:** Donation was NOT processed (CSV unchanged)
 - **Mitigation:** BMC retries failed webhooks up to 3 times
@@ -526,7 +526,7 @@ if ($currency === 'USD') {
 
 ### 1. `donation.created` (One-Time Donation)
 
-**Example:** [donation_created_siggi_5eur_invalid_signature.json](supporters/events/examples/donation_created_siggi_5eur_invalid_signature.json)
+**Example:** [donation_created_alex_5eur_invalid_signature.json](supporters/events/examples/donation_created_alex_5eur_invalid_signature.json)
 
 ```json
 {
@@ -535,7 +535,7 @@ if ($currency === 'USD') {
     "amount": 5,
     "object": "payment",
     "status": "succeeded",
-    "message": "Siggi became a supporter.",
+    "message": "Alex became a supporter.",
     "currency": "EUR",
     "refunded": "false",
     "created_at": 1780394550,
@@ -546,10 +546,10 @@ if ($currency === 'USD') {
     "support_note": "Dein Programm hat meine 5 Bose Soundtouch Boxen gerettet...",
     "support_type": "Supporter",
     "supporter_id": 10815174,
-    "supporter_name": "Siggi",
+    "supporter_name": "Alex",
     "transaction_id": "pi_3Tdp9PJRHVLVJ5LA0Eti2Zxx",
     "application_fee": "0.25",
-    "supporter_email": "siggiaze@gmail.com",
+    "supporter_email": "alex@example.com",
     "supporter_name_type": "default",
     "total_amount_charged": "5.00"
   },
@@ -573,7 +573,7 @@ if ($currency === 'USD') {
 
 ### 2. `recurring_donation.started` (Monthly Subscription Started)
 
-**Example:** [recurring_donation_started_gruenwald.json](supporters/events/examples/recurring_donation_started_gruenwald.json)
+**Example:** [recurring_donation_started_jamie.json](supporters/events/examples/recurring_donation_started_jamie.json)
 
 ```json
 {
@@ -592,8 +592,8 @@ if ($currency === 'USD') {
     "support_note": "joa da ka ma scho emoi wos stabils mochn",
     "supporter_id": 10816073,
     "duration_type": "month",
-    "supporter_name": "Grünwald Almöhü",
-    "supporter_email": "christian@scheils.de",
+    "supporter_name": "Jamie Smith",
+    "supporter_email": "jamie@example.com",
     "current_period_end": 1782997603,
     "supporter_feedback": null,
     "supporter_name_type": "default",
@@ -619,7 +619,7 @@ if ($currency === 'USD') {
 
 ### 3. `recurring_donation.updated` (Subscription Changed)
 
-**Example:** [recurring_donation_updated_gruenwald.json](supporters/events/examples/recurring_donation_updated_gruenwald.json)
+**Example:** [recurring_donation_updated_jamie.json](supporters/events/examples/recurring_donation_updated_jamie.json)
 
 **Same structure as `started`, but:**
 - `status` remains `"active"`
@@ -630,7 +630,7 @@ if ($currency === 'USD') {
 
 ### 4. `recurring_donation.cancelled` (Subscription Cancelled)
 
-**Example:** [recurring_donation_cancelled_gruenwald.json](supporters/events/examples/recurring_donation_cancelled_gruenwald.json)
+**Example:** [recurring_donation_cancelled_jamie.json](supporters/events/examples/recurring_donation_cancelled_jamie.json)
 
 ```json
 {
@@ -665,7 +665,7 @@ if ($currency === 'USD') {
     "refunded_at": 1780500000,
     "transaction_id": "pi_3Tdp9PJRHVLVJ5LA0Eti2Zxx",
     "supporter_id": 10815174,
-    "supporter_name": "Siggi"
+    "supporter_name": "Alex"
   },
   "type": "donation.refunded",
   "created": 1780500005
@@ -1409,7 +1409,7 @@ if (text.charCodeAt(0) === 0xFEFF) {
 
 **Symptoms:**
 - BMC webhook log shows: `"Gr\\u00fcnwald Alm\\u00f6h\\u00fc"`
-- But CSV has correct: `Grünwald Almöhü`
+- But CSV has correct: `Jamie Smith`
 
 **Root Cause:**
 - PHP `json_encode()` escapes by default
@@ -1428,10 +1428,10 @@ echo json_encode($response, JSON_UNESCAPED_UNICODE);
 
 ---
 
-### Issue: Siggi Has 5 Donations But CSV Shows Wrong Total
+### Issue: Alex Has 5 Donations But CSV Shows Wrong Total
 
 **Symptoms:**
-- Siggi donated: €5 + €1 + €1 + €1 + €1 = €9
+- Alex donated: €5 + €1 + €1 + €1 + €1 = €9
 - CSV shows: €8 or €5 (depends on which webhook we missed)
 
 **Root Cause:**
