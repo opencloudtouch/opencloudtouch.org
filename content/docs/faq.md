@@ -62,7 +62,7 @@ You should only run one instance per network. Multiple instances will compete fo
 {{< details title="Presets are not saving" >}}
 Check that the data volume is mounted correctly in Docker. Without persistent storage, presets are lost on container restart:
 ```bash
-docker run -v opencloudtouch-data:/data ...
+docker run -v oct-data:/data ...
 ```
 {{< /details >}}
 

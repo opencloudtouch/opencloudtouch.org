@@ -1,0 +1,30 @@
+{
+  "data": {
+    "id": 14422773,
+    "amount": 1,
+    "object": "payment",
+    "status": "succeeded",
+    "message": "Grünwald Almöhü became a supporter.",
+    "currency": "EUR",
+    "refunded": "false",
+    "created_at": 1780405496,
+    "note_hidden": "false",
+    "refunded_at": null,
+    "coffee_count": 1,
+    "coffee_price": "1.0000",
+    "support_note": "Joa da hauts ma doch de Socken weg. Wos fia a geile App. I bin zua Tiefst dankbar, dass's Menschn wia eich gibt, de'm Kommerz aa moi de Stirn zeign. Danke eich.",
+    "support_type": "Supporter",
+    "supporter_id": 10816073,
+    "supporter_name": "Grünwald Almöhü",
+    "transaction_id": "pi_3TdrzGJRHVLVJ5LA2UdDoTsy",
+    "application_fee": "0.05",
+    "supporter_email": "christian@scheils.de",
+    "supporter_name_type": "default",
+    "total_amount_charged": "1.00"
+  },
+  "type": "donation.created",
+  "attempt": 1,
+  "created": 1780405500,
+  "event_id": 580914,
+  "live_mode": true
+}

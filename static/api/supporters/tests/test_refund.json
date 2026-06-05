@@ -1,0 +1,17 @@
+{
+  "data": {
+    "id": 99999,
+    "amount": 3,
+    "object": "payment",
+    "status": "succeeded",
+    "currency": "EUR",
+    "supporter_id": 99999,
+    "supporter_name": "Integration Test",
+    "total_amount_charged": "3.00"
+  },
+  "type": "donation.refunded",
+  "event_id": 666666,
+  "live_mode": false,
+  "attempt": 1,
+  "created": 1717545600
+}

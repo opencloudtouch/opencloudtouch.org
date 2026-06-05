@@ -22,7 +22,7 @@ git clone https://github.com/opencloudtouch/opencloudtouch.git
 cd opencloudtouch
 
 # Start with Docker Compose
-docker compose up -d
+docker compose -f deployment/docker-compose.yml up -d
 ```
 
 The service starts on port **7777** by default.

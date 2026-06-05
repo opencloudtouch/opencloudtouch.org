@@ -1,0 +1,2 @@
+# Block all HTTP access to event archive
+Require all denied

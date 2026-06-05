@@ -1,0 +1,22 @@
+# ============================================
+# Supporters API — Security Rules
+# ============================================
+
+# Block direct access to sensitive files
+<FilesMatch "^\.env\.php$|^supporters\.csv$|^supporters\.csv\.lock$|\.backup\.|^webhook.*\.log$">
+    Require all denied
+</FilesMatch>
+
+# Allow access to PHP endpoints
+<FilesMatch "^(webhook|get|upload)\.php$">
+    Require all granted
+</FilesMatch>
+
+# Block directory listing
+Options -Indexes
+
+# PHP error handling (production)
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+</IfModule>
