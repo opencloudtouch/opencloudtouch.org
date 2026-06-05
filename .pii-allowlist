@@ -1,11 +1,74 @@
-# PII Allowlist
-# =============
-# Each line contains a SHA-256 hash of a PII finding that has been reviewed
-# and approved as a false positive or intentional.
+# PII & Secrets Allowlist
+# =======================
+# The CI pipeline scans every tracked file for PII and secret patterns.
+# If a match is a false positive (e.g. a test fixture or documentation
+# example), add its SHA-256 hash here to suppress the error.
 #
-# Format: <sha256-hash> # <optional comment explaining why it's allowed>
+# ──────────────────────────────────────────────────────────────────────
+# WHAT IS SCANNED
+# ──────────────────────────────────────────────────────────────────────
 #
-# To get the hash for a finding, run the CI pipeline — it prints the hash
-# for each detected pattern. Copy the hash here to suppress it.
+#   email          Real e-mail addresses (excludes @example.com etc.)
+#   password       Hardcoded passwords/secrets in assignments
+#   api-key        API keys / secret keys in assignments
+#   github-token   GitHub PATs (ghp_...), OAuth (gho_...), App (ghs_...)
+#   openai-key     OpenAI API keys (sk-...)
+#   private-key    PEM private keys (-----BEGIN ... PRIVATE KEY-----)
+#   bearer-token   Bearer tokens (20+ chars)
+#   aws-key        AWS Access Key IDs (AKIA...)
+#   hex-secret     Long hex strings in secret/token/key assignments
 #
-# NEVER add a hash without reviewing the actual finding first!
+#
+# ──────────────────────────────────────────────────────────────────────
+# HOW IT WORKS
+# ──────────────────────────────────────────────────────────────────────
+#
+# 1. Push your changes (or open a PR).
+# 2. The "Scan for PII leaks" step fails and prints output like:
+#
+#      ❌ PII found: docs/example.md:42: someone@test.dev
+#         Hash to allow: a1b2c3d4e5f6...  ← copy this full hash
+#
+# 3. Review the finding. Is it truly harmless?
+#    - Test fixture with fake data         → allowlist it
+#    - Documentation example               → allowlist it
+#    - Real personal e-mail address         → anonymize instead!
+#
+# 4. Paste the hash on a new line below, add a comment:
+#
+#      a1b2c3d4e5f6... # docs/example.md — test fixture address
+#
+# 5. Commit & push. The scanner will now skip that match.
+#
+# ──────────────────────────────────────────────────────────────────────
+# HASH COMPUTATION (for local testing)
+# ──────────────────────────────────────────────────────────────────────
+#
+# The hash is SHA-256 of "file:line:match" (no newline):
+#
+#   echo -n "docs/example.md:42:someone@test.dev" | sha256sum
+#
+# On Windows (PowerShell):
+#
+#   $s = "docs/example.md:42:someone@test.dev"
+#   [System.BitConverter]::ToString(
+#     [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+#       [System.Text.Encoding]::UTF8.GetBytes($s)
+#     )
+#   ).Replace('-','').ToLower()
+#
+# ──────────────────────────────────────────────────────────────────────
+# RULES
+# ──────────────────────────────────────────────────────────────────────
+#
+# • NEVER add a hash without reviewing the actual finding first!
+# • One hash per line.  Comments after # are ignored.
+# • If the file/line changes, the hash changes — you'll need a new entry.
+# • Hashes of real PII must NEVER be added. Anonymize the data instead.
+#
+# ──────────────────────────────────────────────────────────────────────
+# FORMAT:  <sha256-hash> # <file> — <reason>
+# ──────────────────────────────────────────────────────────────────────
+#
+# Example (not active — just for illustration):
+# 3a7f2b...full-hash-here... # static/api/test.json — fake test address

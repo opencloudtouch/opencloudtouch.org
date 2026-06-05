@@ -14,15 +14,38 @@ jobs:
         with:
           submodules: true
 
-      # --- PII Scanner ---
-      - name: Scan for PII leaks
+      # --- PII & Secrets Scanner ---
+      - name: Scan for PII and secret leaks
         run: |
-          echo "🔍 Scanning for PII patterns..."
+          echo "🔍 Scanning for PII and secrets..."
           ALLOWLIST=".pii-allowlist"
           FOUND=0
 
-          # Patterns: email-like strings that aren't example.com/example.org/localhost/our own domain
-          PATTERNS='[a-zA-Z0-9._%+-]+@(?!example\.(com|org|net)|localhost|opencloudtouch\.org)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+          # Define patterns (label:regex pairs)
+          declare -a PATTERNS=(
+            # Emails (excluding safe domains)
+            "email:[a-zA-Z0-9._%+-]+@(?!example\.(com|org|net)|localhost|opencloudtouch\.org)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+            # Hardcoded passwords/secrets in assignments
+            "password:(?i)(password|passwd|pwd|secret)\s*[:=]\s*['\"][^'\"]{4,}['\"]"
+            # API keys in assignments
+            "api-key:(?i)(api[_-]?key|apikey|secret[_-]?key|access[_-]?token)\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+            # GitHub Personal Access Tokens
+            "github-token:ghp_[a-zA-Z0-9]{36}"
+            # GitHub OAuth / App tokens
+            "github-oauth:gho_[a-zA-Z0-9]{36}"
+            # GitHub App installation tokens
+            "github-app:ghs_[a-zA-Z0-9]{36}"
+            # OpenAI API keys
+            "openai-key:sk-[a-zA-Z0-9]{32,}"
+            # Private keys (PEM)
+            "private-key:-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"
+            # Bearer tokens (20+ chars)
+            "bearer-token:(?i)bearer\s+[a-zA-Z0-9._~+/=-]{20,}"
+            # AWS Access Keys
+            "aws-key:AKIA[0-9A-Z]{16}"
+            # Generic high-entropy hex secrets (64+ chars, e.g. webhook secrets)
+            "hex-secret:(?i)(secret|token|key)\s*[:=]\s*['\"][0-9a-f]{64,}['\"]"
+          )
 
           while IFS= read -r file; do
             # Skip binary files, the allowlist itself, and .git
@@ -30,28 +53,33 @@ jobs:
             [[ "$file" == "$ALLOWLIST" ]] && continue
             [[ "$file" == .git/* ]] && continue
 
-            while IFS=: read -r lineno match; do
-              # Compute SHA-256 of the finding (file:line:match)
-              HASH=$(echo -n "${file}:${lineno}:${match}" | sha256sum | cut -d' ' -f1)
+            for entry in "${PATTERNS[@]}"; do
+              label="${entry%%:*}"
+              pattern="${entry#*:}"
 
-              # Check allowlist
-              if [ -f "$ALLOWLIST" ] && grep -q "^${HASH}" "$ALLOWLIST"; then
-                echo "  ⏭️  Allowed: ${file}:${lineno} (hash: ${HASH:0:12}...)"
-                continue
-              fi
+              while IFS=: read -r lineno match; do
+                # Compute SHA-256 of the finding (file:line:match)
+                HASH=$(echo -n "${file}:${lineno}:${match}" | sha256sum | cut -d' ' -f1)
 
-              echo "  ❌ PII found: ${file}:${lineno}: ${match}"
-              echo "     Hash to allow: ${HASH}"
-              FOUND=$((FOUND + 1))
-            done < <(grep -nPo "$PATTERNS" "$file" 2>/dev/null || true)
+                # Check allowlist
+                if [ -f "$ALLOWLIST" ] && grep -q "^${HASH}" "$ALLOWLIST"; then
+                  echo "  ⏭️  Allowed: ${file}:${lineno} [${label}] (hash: ${HASH:0:12}...)"
+                  continue
+                fi
+
+                echo "  ❌ ${label}: ${file}:${lineno}: ${match}"
+                echo "     Hash to allow: ${HASH}"
+                FOUND=$((FOUND + 1))
+              done < <(grep -nPo "$pattern" "$file" 2>/dev/null || true)
+            done
           done < <(git ls-files)
 
           if [ $FOUND -gt 0 ]; then
             echo ""
-            echo "❌ Found $FOUND PII pattern(s). Add hash(es) to .pii-allowlist to suppress false positives."
+            echo "❌ Found $FOUND leak(s). Add hash(es) to .pii-allowlist to suppress false positives."
             exit 1
           fi
-          echo "✅ No PII leaks found."
+          echo "✅ No PII or secret leaks found."
 
       # --- Hugo Build ---
       - name: Setup Hugo
