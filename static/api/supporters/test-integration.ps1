@@ -33,13 +33,13 @@ function Test-WebhookEvent {
         [string]$JsonFile,
         [hashtable[]]$Assertions
     )
-    Write-Host "--- $TestName ---" -ForegroundColor Yellow
+    Write-Information "--- $TestName ---" -InformationAction Continue
     $f = Join-Path $testsDir $JsonFile
     $r = curl.exe -s -X POST "$BaseUrl/webhook.php" -H "Content-Type: application/json" -d "@$f" 2>&1
     foreach ($a in $Assertions) {
         Assert-Response $r $a.Expected $a.Description
     }
-    Write-Host ""
+    Write-Information "" -InformationAction Continue
 }
 
 Write-Host "=== Integration Tests: $BaseUrl ===" -ForegroundColor Cyan
