@@ -21,9 +21,8 @@ jobs:
           ALLOWLIST=".pii-allowlist"
           FOUND=0
 
-          # Patterns: email-like strings that aren't example.com/example.org/localhost
-          # Also catches phone numbers, specific name patterns
-          PATTERNS='[a-zA-Z0-9._%+-]+@(?!example\.(com|org|net)|localhost)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+          # Patterns: email-like strings that aren't example.com/example.org/localhost/our own domain
+          PATTERNS='[a-zA-Z0-9._%+-]+@(?!example\.(com|org|net)|localhost|opencloudtouch\.org)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
 
           while IFS= read -r file; do
             # Skip binary files, the allowlist itself, and .git
