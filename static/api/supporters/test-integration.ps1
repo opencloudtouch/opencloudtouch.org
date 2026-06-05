@@ -17,13 +17,13 @@ function Assert-Response {
 
     if ($Response -match [regex]::Escape($ExpectedKey)) {
         $script:pass++
-        Write-Host "  PASS $Description" -ForegroundColor Green
-        Write-Host "       $Response" -ForegroundColor DarkGray
+        Write-Information "  PASS $Description" -InformationAction Continue
+        Write-Information "       $Response" -InformationAction Continue
     } else {
         $script:fail++
-        Write-Host "  FAIL $Description" -ForegroundColor Red
-        Write-Host "       Expected: $ExpectedKey" -ForegroundColor Red
-        Write-Host "       Got:      $Response" -ForegroundColor Red
+        Write-Information "  FAIL $Description" -InformationAction Continue
+        Write-Information "       Expected: $ExpectedKey" -InformationAction Continue
+        Write-Information "       Got:      $Response" -InformationAction Continue
     }
 }
 

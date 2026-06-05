@@ -15,6 +15,8 @@ ini_set('serialize_precision', 14);
 
 mb_internal_encoding('UTF-8');
 
+const DATETIME_FORMAT = 'Y-m-d H:i:s';
+
 // Paths
 $log_file = __DIR__ . '/webhook.log';
 $debug_log = __DIR__ . '/webhook-debug.log';
@@ -44,15 +46,17 @@ $live_mode = $data['live_mode'] ?? true;
 $is_test = $live_mode === false;
 
 // Archive event (before any processing)
+$safeEventId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$event_id);
+$safeEventType = preg_replace('/[^a-zA-Z0-9_.-]/', '', $event_type);
 $archive_filename = sprintf(
     '%s/%s_%s_%s.json',
     $events_dir,
     date('Y-m-d_H-i-s'),
-    $event_id,
-    $event_type
+    $safeEventId,
+    $safeEventType
 );
 file_put_contents($archive_filename, json_encode([
-    'timestamp' => date('Y-m-d H:i:s'),
+    'timestamp' => date(DATETIME_FORMAT),
     'event_id' => $event_id,
     'event_type' => $event_type,
     'live_mode' => $live_mode,
@@ -61,7 +65,7 @@ file_put_contents($archive_filename, json_encode([
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
 // Debug log
-file_put_contents($debug_log, date('Y-m-d H:i:s') . " === NEW REQUEST ===\n", FILE_APPEND);
+file_put_contents($debug_log, date(DATETIME_FORMAT) . " === NEW REQUEST ===\n", FILE_APPEND);
 file_put_contents($debug_log, "Event: $event_type (ID: $event_id)\n", FILE_APPEND);
 file_put_contents($debug_log, "Archived: $archive_filename\n", FILE_APPEND);
 
@@ -72,7 +76,7 @@ if (!$is_test) {
 
     if (empty($signature) || !hash_equals($expected_signature, $signature)) {
         http_response_code(403);
-        file_put_contents($log_file, date('Y-m-d H:i:s') . " [ERROR] Invalid signature for event $event_id\n", FILE_APPEND);
+        file_put_contents($log_file, date(DATETIME_FORMAT) . " [ERROR] Invalid signature for event $event_id\n", FILE_APPEND);
         die(json_encode(['error' => 'Invalid signature'], JSON_UNESCAPED_UNICODE));
     }
 }
@@ -82,7 +86,9 @@ if (!$is_test) {
 // ========================================
 
 function convertToEur($amount, $currency, $date) {
-    if ($currency === 'EUR') return $amount;
+    if ($currency === 'EUR') {
+        return $amount;
+    }
 
     // Historical USD to EUR rates (ECB)
     $usdToEur = [
@@ -105,9 +111,11 @@ function convertToEur($amount, $currency, $date) {
 // CSV HELPERS
 // ========================================
 
-function read_supporters($csv_file) {
+function readSupporters($csv_file) {
     $supporters = [];
-    if (!file_exists($csv_file)) return $supporters;
+    if (!file_exists($csv_file)) {
+        return $supporters;
+    }
 
     $csv_content = file_get_contents($csv_file);
 
@@ -135,7 +143,7 @@ function read_supporters($csv_file) {
     return $supporters;
 }
 
-function write_supporters($supporters, $csv_file) {
+function writeSupporters($supporters, $csv_file) {
     // Remove supporters with zero contributions (refunded everything)
     $supporters = array_filter($supporters, function($s) {
         return round($s['amount'], 2) > 0 || round($s['monthly'], 2) > 0;
@@ -175,29 +183,29 @@ function write_supporters($supporters, $csv_file) {
 
 switch ($event_type) {
     case 'donation.created':
-        handle_donation($data, $csv_file, $lock_file, $log_file);
+        handleDonation($data, $csv_file, $lock_file, $log_file);
         break;
 
     case 'recurring_donation.started':
-        handle_subscription_started($data, $csv_file, $lock_file, $log_file);
+        handleSubscriptionStarted($data, $csv_file, $lock_file, $log_file);
         break;
 
     case 'recurring_donation.cancelled':
-        handle_subscription_cancelled($data, $csv_file, $lock_file, $log_file);
+        handleSubscriptionCancelled($data, $csv_file, $lock_file, $log_file);
         break;
 
     case 'recurring_donation.updated':
-        handle_subscription_updated($data, $csv_file, $lock_file, $log_file);
+        handleSubscriptionUpdated($data, $csv_file, $lock_file, $log_file);
         break;
 
     case 'donation.refunded':
     case 'extra_purchase.refunded':
     case 'wishlist_payment.refunded':
-        handle_refund($data, $csv_file, $lock_file, $log_file);
+        handleRefund($data, $csv_file, $lock_file, $log_file);
         break;
 
     default:
-        file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Archived unhandled event: $event_type\n", FILE_APPEND);
+        file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Archived unhandled event: $event_type\n", FILE_APPEND);
         http_response_code(200);
         echo json_encode(['status' => 'archived', 'event' => $event_type], JSON_UNESCAPED_UNICODE);
         exit;
@@ -207,7 +215,7 @@ switch ($event_type) {
 // HANDLERS
 // ========================================
 
-function handle_donation($data, $csv_file, $lock_file, $log_file) {
+function handleDonation($data, $csv_file, $lock_file, $log_file) {
     $eventData = $data['data'] ?? $data;
     $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
     $currency = $eventData['currency'] ?? 'EUR';
@@ -222,17 +230,17 @@ function handle_donation($data, $csv_file, $lock_file, $log_file) {
     // Currency conversion
     $amount = convertToEur($raw_amount, $currency, $date);
 
-    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Donation: $name (EUR $amount, was $currency $raw_amount)\n", FILE_APPEND);
+    file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Donation: $name (EUR $amount, was $currency $raw_amount)\n", FILE_APPEND);
 
     // donation.created is ALWAYS treated as a one-time amount addition.
     // BMC sends this for both one-time AND first recurring payments.
     // The recurring_donation.started event sets the monthly rate separately.
-    with_lock($lock_file, function() use ($name, $amount, $date, $csv_file, $log_file) {
-        $supporters = read_supporters($csv_file);
+    withLock($lock_file, function() use ($name, $amount, $date, $csv_file, $log_file) {
+        $supporters = readSupporters($csv_file);
 
         if (isset($supporters[$name])) {
             $supporters[$name]['amount'] += $amount;
-            file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Updated: $name (total: EUR " . $supporters[$name]['amount'] . ")\n", FILE_APPEND);
+            file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Updated: $name (total: EUR " . $supporters[$name]['amount'] . ")\n", FILE_APPEND);
         } else {
             $supporters[$name] = [
                 'type' => 'one-time',
@@ -240,17 +248,17 @@ function handle_donation($data, $csv_file, $lock_file, $log_file) {
                 'monthly' => 0,
                 'date' => $date
             ];
-            file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Added: $name\n", FILE_APPEND);
+            file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Added: $name\n", FILE_APPEND);
         }
 
-        write_supporters($supporters, $csv_file);
+        writeSupporters($supporters, $csv_file);
 
         http_response_code(200);
         echo json_encode(['success' => true, 'supporter' => $name, 'amount' => round($amount, 2)], JSON_UNESCAPED_UNICODE);
     });
 }
 
-function handle_subscription_started($data, $csv_file, $lock_file, $log_file) {
+function handleSubscriptionStarted($data, $csv_file, $lock_file, $log_file) {
     $eventData = $data['data'] ?? $data;
     $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
     $currency = $eventData['currency'] ?? 'EUR';
@@ -262,10 +270,10 @@ function handle_subscription_started($data, $csv_file, $lock_file, $log_file) {
 
     $monthly_rate = convertToEur($raw_amount, $currency, $date);
 
-    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Subscription started: $name (EUR $monthly_rate/month)\n", FILE_APPEND);
+    file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Subscription started: $name (EUR $monthly_rate/month)\n", FILE_APPEND);
 
-    with_lock($lock_file, function() use ($name, $monthly_rate, $date, $csv_file, $log_file) {
-        $supporters = read_supporters($csv_file);
+    withLock($lock_file, function() use ($name, $monthly_rate, $date, $csv_file, $log_file) {
+        $supporters = readSupporters($csv_file);
 
         if (isset($supporters[$name])) {
             // Supporter already exists (donation.created arrived first) - set monthly rate + upgrade type
@@ -281,30 +289,30 @@ function handle_subscription_started($data, $csv_file, $lock_file, $log_file) {
             ];
         }
 
-        write_supporters($supporters, $csv_file);
+        writeSupporters($supporters, $csv_file);
 
-        file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Updated: $name (monthly: EUR $monthly_rate)\n", FILE_APPEND);
+        file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Updated: $name (monthly: EUR $monthly_rate)\n", FILE_APPEND);
         http_response_code(200);
         echo json_encode(['success' => true, 'supporter' => $name, 'monthly' => round($monthly_rate, 2)], JSON_UNESCAPED_UNICODE);
     });
 }
 
-function handle_subscription_cancelled($data, $csv_file, $lock_file, $log_file) {
+function handleSubscriptionCancelled($data, $csv_file, $lock_file, $log_file) {
     $eventData = $data['data'] ?? $data;
     $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
 
-    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Subscription cancelled: $name\n", FILE_APPEND);
+    file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Subscription cancelled: $name\n", FILE_APPEND);
 
-    with_lock($lock_file, function() use ($name, $csv_file, $log_file) {
-        $supporters = read_supporters($csv_file);
+    withLock($lock_file, function() use ($name, $csv_file, $log_file) {
+        $supporters = readSupporters($csv_file);
 
         if (isset($supporters[$name])) {
             $supporters[$name]['monthly'] = 0;
             $supporters[$name]['type'] = 'one-time';
-            write_supporters($supporters, $csv_file);
-            file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Updated: $name (monthly cancelled, kept amount: EUR " . $supporters[$name]['amount'] . ")\n", FILE_APPEND);
+            writeSupporters($supporters, $csv_file);
+            file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Updated: $name (monthly cancelled, kept amount: EUR " . $supporters[$name]['amount'] . ")\n", FILE_APPEND);
         } else {
-            file_put_contents($log_file, date('Y-m-d H:i:s') . " [WARN] Cancel for unknown supporter: $name\n", FILE_APPEND);
+            file_put_contents($log_file, date(DATETIME_FORMAT) . " [WARN] Cancel for unknown supporter: $name\n", FILE_APPEND);
         }
 
         http_response_code(200);
@@ -312,7 +320,7 @@ function handle_subscription_cancelled($data, $csv_file, $lock_file, $log_file) 
     });
 }
 
-function handle_subscription_updated($data, $csv_file, $lock_file, $log_file) {
+function handleSubscriptionUpdated($data, $csv_file, $lock_file, $log_file) {
     $eventData = $data['data'] ?? $data;
     $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
     $currency = $eventData['currency'] ?? 'EUR';
@@ -321,17 +329,17 @@ function handle_subscription_updated($data, $csv_file, $lock_file, $log_file) {
 
     $new_monthly = convertToEur($raw_amount, $currency, $date);
 
-    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Subscription updated: $name (new rate: EUR $new_monthly/month)\n", FILE_APPEND);
+    file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Subscription updated: $name (new rate: EUR $new_monthly/month)\n", FILE_APPEND);
 
-    with_lock($lock_file, function() use ($name, $new_monthly, $csv_file, $log_file) {
-        $supporters = read_supporters($csv_file);
+    withLock($lock_file, function() use ($name, $new_monthly, $csv_file, $log_file) {
+        $supporters = readSupporters($csv_file);
 
         if (isset($supporters[$name])) {
             $supporters[$name]['monthly'] = $new_monthly;
             $supporters[$name]['type'] = 'monthly';
-            write_supporters($supporters, $csv_file);
+            writeSupporters($supporters, $csv_file);
         } else {
-            file_put_contents($log_file, date('Y-m-d H:i:s') . " [WARN] Update for unknown supporter: $name\n", FILE_APPEND);
+            file_put_contents($log_file, date(DATETIME_FORMAT) . " [WARN] Update for unknown supporter: $name\n", FILE_APPEND);
         }
 
         http_response_code(200);
@@ -339,7 +347,7 @@ function handle_subscription_updated($data, $csv_file, $lock_file, $log_file) {
     });
 }
 
-function handle_refund($data, $csv_file, $lock_file, $log_file) {
+function handleRefund($data, $csv_file, $lock_file, $log_file) {
     $eventData = $data['data'] ?? $data;
     $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
     $currency = $eventData['currency'] ?? 'EUR';
@@ -349,20 +357,20 @@ function handle_refund($data, $csv_file, $lock_file, $log_file) {
     $raw_amount = floatval($eventData['total_amount_charged'] ?? $eventData['amount'] ?? 0);
     $refund_amount = convertToEur($raw_amount, $currency, $date);
 
-    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Refund: $name (EUR $refund_amount)\n", FILE_APPEND);
+    file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Refund: $name (EUR $refund_amount)\n", FILE_APPEND);
 
-    with_lock($lock_file, function() use ($name, $refund_amount, $csv_file, $log_file) {
-        $supporters = read_supporters($csv_file);
+    withLock($lock_file, function() use ($name, $refund_amount, $csv_file, $log_file) {
+        $supporters = readSupporters($csv_file);
 
         if (isset($supporters[$name])) {
             $supporters[$name]['amount'] -= $refund_amount;
             if ($supporters[$name]['amount'] < 0) {
                 $supporters[$name]['amount'] = 0;
             }
-            write_supporters($supporters, $csv_file);
-            file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Updated: $name (refunded EUR $refund_amount, total now: EUR " . $supporters[$name]['amount'] . ")\n", FILE_APPEND);
+            writeSupporters($supporters, $csv_file);
+            file_put_contents($log_file, date(DATETIME_FORMAT) . " [INFO] Updated: $name (refunded EUR $refund_amount, total now: EUR " . $supporters[$name]['amount'] . ")\n", FILE_APPEND);
         } else {
-            file_put_contents($log_file, date('Y-m-d H:i:s') . " [WARN] Refund for unknown supporter: $name\n", FILE_APPEND);
+            file_put_contents($log_file, date(DATETIME_FORMAT) . " [WARN] Refund for unknown supporter: $name\n", FILE_APPEND);
         }
 
         http_response_code(200);
@@ -374,7 +382,7 @@ function handle_refund($data, $csv_file, $lock_file, $log_file) {
 // LOCKING
 // ========================================
 
-function with_lock($lock_file, $callback) {
+function withLock($lock_file, $callback) {
     $lock_fp = fopen($lock_file, 'c');
     if (!flock($lock_fp, LOCK_EX)) {
         http_response_code(500);

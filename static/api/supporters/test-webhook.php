@@ -1,9 +1,7 @@
 <?php
 /**
  * Unit Tests for webhook.php
- * 
  * Run with: php test-webhook.php
- * 
  * Tests all event handlers using real BMC example payloads.
  * Uses a temp directory for CSV/lock/logs — no side effects.
  */
@@ -17,7 +15,7 @@ $test_pass = 0;
 $test_fail = 0;
 $test_errors = [];
 
-function assert_equals($expected, $actual, $message) {
+function assertEquals($expected, $actual, $message) {
     global $test_count, $test_pass, $test_fail, $test_errors;
     $test_count++;
     if ($expected === $actual) {
@@ -32,11 +30,11 @@ function assert_equals($expected, $actual, $message) {
     }
 }
 
-function assert_true($condition, $message) {
-    assert_equals(true, $condition, $message);
+function assertTrue($condition, $message) {
+    assertEquals(true, $condition, $message);
 }
 
-function assert_contains($needle, $haystack, $message) {
+function assertContains($needle, $haystack, $message) {
     global $test_count, $test_pass, $test_fail, $test_errors;
     $test_count++;
     if (strpos($haystack, $needle) !== false) {
@@ -71,7 +69,9 @@ if (!defined('BMC_WEBHOOK_SECRET')) {
 // ---- Include functions from webhook.php ----
 
 function convertToEur($amount, $currency, $date) {
-    if ($currency === 'EUR') return (float)$amount;
+    if ($currency === 'EUR') {
+        return (float)$amount;
+    }
 
     $usdToEur = [
         '2026-06-02' => 0.8588,
@@ -88,9 +88,11 @@ function convertToEur($amount, $currency, $date) {
     return (float)$amount;
 }
 
-function read_supporters($csv_file) {
+function readSupporters($csv_file) {
     $supporters = [];
-    if (!file_exists($csv_file)) return $supporters;
+    if (!file_exists($csv_file)) {
+        return $supporters;
+    }
 
     $csv_content = file_get_contents($csv_file);
 
@@ -117,7 +119,7 @@ function read_supporters($csv_file) {
     return $supporters;
 }
 
-function write_supporters($supporters, $csv_file) {
+function writeSupporters($supporters, $csv_file) {
     // Remove supporters with zero contributions (refunded everything)
     $supporters = array_filter($supporters, function($s) {
         return round($s['amount'], 2) > 0 || round($s['monthly'], 2) > 0;
@@ -154,87 +156,109 @@ function write_supporters($supporters, $csv_file) {
  * Process a webhook event against a test CSV.
  * Simulates what webhook.php does without HTTP layer.
  */
-function process_event($data, $csv_file, $log_file) {
+function processEvent($data, $csv_file, $log_file) {
     $event_type = $data['type'] ?? 'unknown';
     $eventData = $data['data'] ?? $data;
 
     switch ($event_type) {
         case 'donation.created':
-            $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
-            $currency = $eventData['currency'] ?? 'EUR';
-            $raw_amount = floatval($eventData['total_amount_charged'] ?? $eventData['amount'] ?? 0);
-            $created_at = $eventData['created_at'] ?? null;
-            $date = $created_at ? date('Y-m-d', $created_at) : date('Y-m-d');
-            $amount = convertToEur($raw_amount, $currency, $date);
-
-            $supporters = read_supporters($csv_file);
-            if (isset($supporters[$name])) {
-                $supporters[$name]['amount'] += $amount;
-            } else {
-                $supporters[$name] = ['type' => 'one-time', 'amount' => $amount, 'monthly' => 0, 'date' => $date];
-            }
-            write_supporters($supporters, $csv_file);
-            return ['success' => true, 'supporter' => $name, 'amount' => $amount];
-
+            return processDonation($eventData, $csv_file, $log_file);
         case 'recurring_donation.started':
-            $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
-            $currency = $eventData['currency'] ?? 'EUR';
-            $raw_amount = floatval($eventData['amount'] ?? 0);
-            $started_at = $eventData['started_at'] ?? null;
-            $date = $started_at ? date('Y-m-d', $started_at) : date('Y-m-d');
-            $monthly_rate = convertToEur($raw_amount, $currency, $date);
-
-            $supporters = read_supporters($csv_file);
-            if (isset($supporters[$name])) {
-                $supporters[$name]['monthly'] = $monthly_rate;
-                $supporters[$name]['type'] = 'monthly';
-            } else {
-                $supporters[$name] = ['type' => 'monthly', 'amount' => 0, 'monthly' => $monthly_rate, 'date' => $date];
-            }
-            write_supporters($supporters, $csv_file);
-            return ['success' => true, 'supporter' => $name, 'monthly' => $monthly_rate];
-
+            return processSubscriptionStarted($eventData, $csv_file, $log_file);
         case 'recurring_donation.cancelled':
-            $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
-            $supporters = read_supporters($csv_file);
-            if (isset($supporters[$name])) {
-                $supporters[$name]['monthly'] = 0;
-                $supporters[$name]['type'] = 'one-time';
-                write_supporters($supporters, $csv_file);
-            }
-            return ['success' => true, 'supporter' => $name, 'action' => 'cancelled'];
-
+            return processSubscriptionCancelled($eventData, $csv_file, $log_file);
         case 'recurring_donation.updated':
-            $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
-            $currency = $eventData['currency'] ?? 'EUR';
-            $raw_amount = floatval($eventData['amount'] ?? 0);
-            $new_monthly = convertToEur($raw_amount, $currency, date('Y-m-d'));
-
-            $supporters = read_supporters($csv_file);
-            if (isset($supporters[$name])) {
-                $supporters[$name]['monthly'] = $new_monthly;
-                $supporters[$name]['type'] = 'monthly';
-                write_supporters($supporters, $csv_file);
-            }
-            return ['success' => true, 'supporter' => $name, 'monthly' => $new_monthly];
-
+            return processSubscriptionUpdated($eventData, $csv_file, $log_file);
         case 'donation.refunded':
-            $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
-            $currency = $eventData['currency'] ?? 'EUR';
-            $raw_amount = floatval($eventData['total_amount_charged'] ?? $eventData['amount'] ?? 0);
-            $refund_amount = convertToEur($raw_amount, $currency, date('Y-m-d'));
-
-            $supporters = read_supporters($csv_file);
-            if (isset($supporters[$name])) {
-                $supporters[$name]['amount'] -= $refund_amount;
-                if ($supporters[$name]['amount'] < 0) $supporters[$name]['amount'] = 0;
-                write_supporters($supporters, $csv_file);
-            }
-            return ['success' => true, 'supporter' => $name, 'refunded' => $refund_amount];
-
+            return processRefund($eventData, $csv_file, $log_file);
         default:
             return ['status' => 'archived', 'event' => $event_type];
     }
+}
+
+function processDonation($eventData, $csv_file, $log_file) {
+    $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
+    $currency = $eventData['currency'] ?? 'EUR';
+    $raw_amount = floatval($eventData['total_amount_charged'] ?? $eventData['amount'] ?? 0);
+    $created_at = $eventData['created_at'] ?? null;
+    $date = $created_at ? date('Y-m-d', $created_at) : date('Y-m-d');
+    $amount = convertToEur($raw_amount, $currency, $date);
+
+    $supporters = readSupporters($csv_file);
+    if (isset($supporters[$name])) {
+        $supporters[$name]['amount'] += $amount;
+    } else {
+        $supporters[$name] = ['type' => 'one-time', 'amount' => $amount, 'monthly' => 0, 'date' => $date];
+    }
+    writeSupporters($supporters, $csv_file);
+    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Donation: $name (EUR $amount)\n", FILE_APPEND);
+    return ['success' => true, 'supporter' => $name, 'amount' => $amount];
+}
+
+function processSubscriptionStarted($eventData, $csv_file, $log_file) {
+    $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
+    $currency = $eventData['currency'] ?? 'EUR';
+    $raw_amount = floatval($eventData['amount'] ?? 0);
+    $started_at = $eventData['started_at'] ?? null;
+    $date = $started_at ? date('Y-m-d', $started_at) : date('Y-m-d');
+    $monthly_rate = convertToEur($raw_amount, $currency, $date);
+
+    $supporters = readSupporters($csv_file);
+    if (isset($supporters[$name])) {
+        $supporters[$name]['monthly'] = $monthly_rate;
+        $supporters[$name]['type'] = 'monthly';
+    } else {
+        $supporters[$name] = ['type' => 'monthly', 'amount' => 0, 'monthly' => $monthly_rate, 'date' => $date];
+    }
+    writeSupporters($supporters, $csv_file);
+    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Subscription started: $name (EUR $monthly_rate/month)\n", FILE_APPEND);
+    return ['success' => true, 'supporter' => $name, 'monthly' => $monthly_rate];
+}
+
+function processSubscriptionCancelled($eventData, $csv_file, $log_file) {
+    $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
+    $supporters = readSupporters($csv_file);
+    if (isset($supporters[$name])) {
+        $supporters[$name]['monthly'] = 0;
+        $supporters[$name]['type'] = 'one-time';
+        writeSupporters($supporters, $csv_file);
+    }
+    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Subscription cancelled: $name\n", FILE_APPEND);
+    return ['success' => true, 'supporter' => $name, 'action' => 'cancelled'];
+}
+
+function processSubscriptionUpdated($eventData, $csv_file, $log_file) {
+    $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
+    $currency = $eventData['currency'] ?? 'EUR';
+    $raw_amount = floatval($eventData['amount'] ?? 0);
+    $new_monthly = convertToEur($raw_amount, $currency, date('Y-m-d'));
+
+    $supporters = readSupporters($csv_file);
+    if (isset($supporters[$name])) {
+        $supporters[$name]['monthly'] = $new_monthly;
+        $supporters[$name]['type'] = 'monthly';
+        writeSupporters($supporters, $csv_file);
+    }
+    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Subscription updated: $name (EUR $new_monthly/month)\n", FILE_APPEND);
+    return ['success' => true, 'supporter' => $name, 'monthly' => $new_monthly];
+}
+
+function processRefund($eventData, $csv_file, $log_file) {
+    $name = mb_convert_encoding($eventData['supporter_name'] ?? 'Anonymous', 'UTF-8', 'UTF-8');
+    $currency = $eventData['currency'] ?? 'EUR';
+    $raw_amount = floatval($eventData['total_amount_charged'] ?? $eventData['amount'] ?? 0);
+    $refund_amount = convertToEur($raw_amount, $currency, date('Y-m-d'));
+
+    $supporters = readSupporters($csv_file);
+    if (isset($supporters[$name])) {
+        $supporters[$name]['amount'] -= $refund_amount;
+        if ($supporters[$name]['amount'] < 0) {
+            $supporters[$name]['amount'] = 0;
+        }
+        writeSupporters($supporters, $csv_file);
+    }
+    file_put_contents($log_file, date('Y-m-d H:i:s') . " [INFO] Refund: $name (EUR $refund_amount)\n", FILE_APPEND);
+    return ['success' => true, 'supporter' => $name, 'refunded' => $refund_amount];
 }
 
 // ========================================
@@ -248,11 +272,11 @@ echo "=== OpenCloudTouch Webhook Unit Tests ===\n\n";
 // ----------------------------------------
 echo "--- Test: Currency Conversion ---\n";
 
-assert_equals(5.0, convertToEur(5, 'EUR', '2026-06-01'), 'EUR passthrough');
-assert_equals(21.47, convertToEur(25, 'USD', '2026-06-01'), 'USD $25 → €21.47 (rate 0.8588)');
-assert_equals(8.50, convertToEur(10, 'USD', '2026-05-10'), 'USD $10 → €8.50 (rate 0.8500)');
-assert_equals(4.25, convertToEur(5, 'USD', '2099-01-01'), 'USD unknown date → fallback 0.85');
-assert_equals(100.0, convertToEur(100, 'GBP', '2026-06-01'), 'Unknown currency passthrough');
+assertEquals(5.0, convertToEur(5, 'EUR', '2026-06-01'), 'EUR passthrough');
+assertEquals(21.47, convertToEur(25, 'USD', '2026-06-01'), 'USD $25 → €21.47 (rate 0.8588)');
+assertEquals(8.50, convertToEur(10, 'USD', '2026-05-10'), 'USD $10 → €8.50 (rate 0.8500)');
+assertEquals(4.25, convertToEur(5, 'USD', '2099-01-01'), 'USD unknown date → fallback 0.85');
+assertEquals(100.0, convertToEur(100, 'GBP', '2026-06-01'), 'Unknown currency passthrough');
 
 echo "\n";
 
@@ -268,17 +292,17 @@ $event = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_crea
 // Remove _meta for processing
 unset($event['_meta']);
 
-$result = process_event($event, $csv, $log);
+$result = processEvent($event, $csv, $log);
 
-assert_equals(true, $result['success'], 'donation.created returns success');
-assert_equals('Siggi', $result['supporter'], 'Supporter name is Siggi');
-assert_equals(5.0, $result['amount'], 'Amount is €5.00');
+assertEquals(true, $result['success'], 'donation.created returns success');
+assertEquals('Siggi', $result['supporter'], 'Supporter name is Siggi');
+assertEquals(5.0, $result['amount'], 'Amount is €5.00');
 
-$supporters = read_supporters($csv);
-assert_true(isset($supporters['Siggi']), 'Siggi exists in CSV');
-assert_equals(5.0, $supporters['Siggi']['amount'], 'Siggi amount = 5.00');
-assert_equals('one-time', $supporters['Siggi']['type'], 'Siggi type = one-time');
-assert_equals('2026-06-02', $supporters['Siggi']['date'], 'Siggi date from created_at timestamp');
+$supporters = readSupporters($csv);
+assertTrue(isset($supporters['Siggi']), 'Siggi exists in CSV');
+assertEquals(5.0, $supporters['Siggi']['amount'], 'Siggi amount = 5.00');
+assertEquals('one-time', $supporters['Siggi']['type'], 'Siggi type = one-time');
+assertEquals('2026-06-02', $supporters['Siggi']['date'], 'Siggi date from created_at timestamp');
 
 echo "\n";
 
@@ -293,24 +317,24 @@ $log = $test_dir . '/test3.log';
 // Donation 1: €5
 $event1 = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_siggi_5eur_invalid_signature.json'), true);
 unset($event1['_meta']);
-process_event($event1, $csv, $log);
+processEvent($event1, $csv, $log);
 
 // Donation 2: €1 (Nachbuchung)
 $event2 = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_siggi_1eur_nachbuchung.json'), true);
-process_event($event2, $csv, $log);
+processEvent($event2, $csv, $log);
 
 // Donation 3: €1 (note_hidden)
 $event3 = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_siggi_1eur_note_hidden.json'), true);
-process_event($event3, $csv, $log);
+processEvent($event3, $csv, $log);
 
 // Donation 4: €1 (umlauts test)
 $event4 = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_siggi_1eur_umlauts.json'), true);
-process_event($event4, $csv, $log);
+processEvent($event4, $csv, $log);
 
-$supporters = read_supporters($csv);
-assert_equals(8.0, $supporters['Siggi']['amount'], 'Siggi total = €8 after 4 donations (5+1+1+1)');
-assert_equals('one-time', $supporters['Siggi']['type'], 'Siggi stays one-time (no subscription)');
-assert_equals('2026-06-02', $supporters['Siggi']['date'], 'First support date preserved from first donation');
+$supporters = readSupporters($csv);
+assertEquals(8.0, $supporters['Siggi']['amount'], 'Siggi total = €8 after 4 donations (5+1+1+1)');
+assertEquals('one-time', $supporters['Siggi']['type'], 'Siggi stays one-time (no subscription)');
+assertEquals('2026-06-02', $supporters['Siggi']['date'], 'First support date preserved from first donation');
 
 echo "\n";
 
@@ -324,30 +348,30 @@ $log = $test_dir . '/test4.log';
 
 // Step 1: donation.created (€1 one-time payment that comes with subscription)
 $donation = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_gruenwald_1eur.json'), true);
-$result = process_event($donation, $csv, $log);
-$supporters = read_supporters($csv);
+$result = processEvent($donation, $csv, $log);
+$supporters = readSupporters($csv);
 
-assert_equals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After donation: amount = 1');
-assert_equals(0.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After donation: monthly = 0');
-assert_equals('one-time', $supporters['Grünwald Almöhü']['type'] ?? '', 'After donation: type = one-time');
+assertEquals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After donation: amount = 1');
+assertEquals(0.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After donation: monthly = 0');
+assertEquals('one-time', $supporters['Grünwald Almöhü']['type'] ?? '', 'After donation: type = one-time');
 
 // Step 2: recurring_donation.started (sets monthly rate)
 $started = json_decode(file_get_contents(__DIR__ . '/events/examples/recurring_donation_started_gruenwald.json'), true);
-$result = process_event($started, $csv, $log);
-$supporters = read_supporters($csv);
+$result = processEvent($started, $csv, $log);
+$supporters = readSupporters($csv);
 
-assert_equals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After started: amount still 1 (no change)');
-assert_equals(1.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After started: monthly = 1');
-assert_equals('monthly', $supporters['Grünwald Almöhü']['type'] ?? '', 'After started: type = monthly');
+assertEquals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After started: amount still 1 (no change)');
+assertEquals(1.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After started: monthly = 1');
+assertEquals('monthly', $supporters['Grünwald Almöhü']['type'] ?? '', 'After started: type = monthly');
 
 // Step 3: recurring_donation.cancelled
 $cancelled = json_decode(file_get_contents(__DIR__ . '/events/examples/recurring_donation_cancelled_gruenwald.json'), true);
-$result = process_event($cancelled, $csv, $log);
-$supporters = read_supporters($csv);
+$result = processEvent($cancelled, $csv, $log);
+$supporters = readSupporters($csv);
 
-assert_equals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After cancel: amount preserved = 1');
-assert_equals(0.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After cancel: monthly = 0');
-assert_equals('one-time', $supporters['Grünwald Almöhü']['type'] ?? '', 'After cancel: type reverted to one-time');
+assertEquals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After cancel: amount preserved = 1');
+assertEquals(0.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After cancel: monthly = 0');
+assertEquals('one-time', $supporters['Grünwald Almöhü']['type'] ?? '', 'After cancel: type reverted to one-time');
 
 echo "\n";
 
@@ -361,18 +385,18 @@ $log = $test_dir . '/test5.log';
 
 // Setup: Create supporter with subscription
 $donation = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_gruenwald_1eur.json'), true);
-process_event($donation, $csv, $log);
+processEvent($donation, $csv, $log);
 $started = json_decode(file_get_contents(__DIR__ . '/events/examples/recurring_donation_started_gruenwald.json'), true);
-process_event($started, $csv, $log);
+processEvent($started, $csv, $log);
 
 // Update: Change monthly rate (simulated)
 $updated = json_decode(file_get_contents(__DIR__ . '/events/examples/recurring_donation_updated_gruenwald.json'), true);
-$result = process_event($updated, $csv, $log);
-$supporters = read_supporters($csv);
+$result = processEvent($updated, $csv, $log);
+$supporters = readSupporters($csv);
 
-assert_equals('monthly', $supporters['Grünwald Almöhü']['type'] ?? '', 'After update: type stays monthly');
-assert_equals(1.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After update: monthly rate = 1 (from example)');
-assert_equals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After update: amount unchanged');
+assertEquals('monthly', $supporters['Grünwald Almöhü']['type'] ?? '', 'After update: type stays monthly');
+assertEquals(1.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'After update: monthly rate = 1 (from example)');
+assertEquals(1.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'After update: amount unchanged');
 
 echo "\n";
 
@@ -387,7 +411,7 @@ $log = $test_dir . '/test6.log';
 // Setup: Siggi donates €5
 $event = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_siggi_5eur_invalid_signature.json'), true);
 unset($event['_meta']);
-process_event($event, $csv, $log);
+processEvent($event, $csv, $log);
 
 // Refund €5
 $refund = [
@@ -401,10 +425,10 @@ $refund = [
     'event_id' => 999999,
     'live_mode' => false
 ];
-$result = process_event($refund, $csv, $log);
+$result = processEvent($refund, $csv, $log);
 
-$supporters = read_supporters($csv);
-assert_false(isset($supporters['Siggi']), 'After full refund: supporter removed from CSV');
+$supporters = readSupporters($csv);
+assertFalse(isset($supporters['Siggi']), 'After full refund: supporter removed from CSV');
 
 echo "\n";
 
@@ -418,7 +442,7 @@ $log = $test_dir . '/test7.log';
 
 // Setup: Siggi donates €1
 $event = json_decode(file_get_contents(__DIR__ . '/events/examples/donation_created_siggi_1eur_nachbuchung.json'), true);
-process_event($event, $csv, $log);
+processEvent($event, $csv, $log);
 
 // Refund €5 (more than donated)
 $refund = [
@@ -427,10 +451,10 @@ $refund = [
     'event_id' => 999998,
     'live_mode' => false
 ];
-process_event($refund, $csv, $log);
+processEvent($refund, $csv, $log);
 
-$supporters = read_supporters($csv);
-assert_false(isset($supporters['Siggi']), 'Over-refund: supporter removed from CSV');
+$supporters = readSupporters($csv);
+assertFalse(isset($supporters['Siggi']), 'Over-refund: supporter removed from CSV');
 
 echo "\n";
 
@@ -454,10 +478,10 @@ $usd_event = [
     'event_id' => 999997,
     'live_mode' => false
 ];
-$result = process_event($usd_event, $csv, $log);
+$result = processEvent($usd_event, $csv, $log);
 
-$supporters = read_supporters($csv);
-assert_equals(21.47, $supporters['Peter St.']['amount'] ?? -1, 'USD $25 stored as EUR 21.47');
+$supporters = readSupporters($csv);
+assertEquals(21.47, $supporters['Peter St.']['amount'] ?? -1, 'USD $25 stored as EUR 21.47');
 
 echo "\n";
 
@@ -472,9 +496,9 @@ $csv = $test_dir . '/test9.csv';
 $bom = "\xEF\xBB\xBF";
 file_put_contents($csv, $bom . "name,type,amount,monthlyAmount,firstSupportDate\nTestUser,one-time,10,0,2026-01-01\n");
 
-$supporters = read_supporters($csv);
-assert_true(isset($supporters['TestUser']), 'BOM-prefixed CSV parsed correctly');
-assert_equals(10.0, $supporters['TestUser']['amount'] ?? -1, 'Amount read correctly through BOM');
+$supporters = readSupporters($csv);
+assertTrue(isset($supporters['TestUser']), 'BOM-prefixed CSV parsed correctly');
+assertEquals(10.0, $supporters['TestUser']['amount'] ?? -1, 'Amount read correctly through BOM');
 
 echo "\n";
 
@@ -492,13 +516,13 @@ $supporters = [
     'Big' => ['type' => 'one-time', 'amount' => 30, 'monthly' => 0, 'date' => '2026-05-02'],
     'Medium' => ['type' => 'one-time', 'amount' => 15, 'monthly' => 0, 'date' => '2026-05-03'],
 ];
-write_supporters($supporters, $csv);
-$sorted = read_supporters($csv);
+writeSupporters($supporters, $csv);
+$sorted = readSupporters($csv);
 $names = array_keys($sorted);
 
-assert_equals('Big', $names[0], 'First supporter = Big (30€)');
-assert_equals('Medium', $names[1], 'Second supporter = Medium (15€)');
-assert_equals('Small', $names[2], 'Third supporter = Small (5€)');
+assertEquals('Big', $names[0], 'First supporter = Big (30€)');
+assertEquals('Medium', $names[1], 'Second supporter = Medium (15€)');
+assertEquals('Small', $names[2], 'Third supporter = Small (5€)');
 
 echo "\n";
 
@@ -513,12 +537,12 @@ $supporters = [
     'Late' => ['type' => 'one-time', 'amount' => 10, 'monthly' => 0, 'date' => '2026-06-01'],
     'Early' => ['type' => 'one-time', 'amount' => 10, 'monthly' => 0, 'date' => '2026-05-01'],
 ];
-write_supporters($supporters, $csv);
-$sorted = read_supporters($csv);
+writeSupporters($supporters, $csv);
+$sorted = readSupporters($csv);
 $names = array_keys($sorted);
 
-assert_equals('Early', $names[0], 'Same amount → earlier date first');
-assert_equals('Late', $names[1], 'Same amount → later date second');
+assertEquals('Early', $names[0], 'Same amount → earlier date first');
+assertEquals('Late', $names[1], 'Same amount → later date second');
 
 echo "\n";
 
@@ -533,12 +557,12 @@ $supporters = [
     'Grünwald Almöhü' => ['type' => 'monthly', 'amount' => 1, 'monthly' => 1, 'date' => '2026-06-02'],
     'Peter St.' => ['type' => 'one-time', 'amount' => 21.47, 'monthly' => 0, 'date' => '2026-06-01'],
 ];
-write_supporters($supporters, $csv);
-$roundtrip = read_supporters($csv);
+writeSupporters($supporters, $csv);
+$roundtrip = readSupporters($csv);
 
-assert_true(isset($roundtrip['Grünwald Almöhü']), 'Umlaut name survives CSV roundtrip');
-assert_true(isset($roundtrip['Peter St.']), 'Dotted name survives CSV roundtrip');
-assert_equals(21.47, $roundtrip['Peter St.']['amount'] ?? -1, 'Decimal amount preserved');
+assertTrue(isset($roundtrip['Grünwald Almöhü']), 'Umlaut name survives CSV roundtrip');
+assertTrue(isset($roundtrip['Peter St.']), 'Dotted name survives CSV roundtrip');
+assertEquals(21.47, $roundtrip['Peter St.']['amount'] ?? -1, 'Decimal amount preserved');
 
 echo "\n";
 
@@ -550,15 +574,15 @@ echo "--- Test: Unknown Event Type ---\n";
 $csv = $test_dir . '/test13.csv';
 $log = $test_dir . '/test13.log';
 
-$result = process_event([
+$result = processEvent([
     'type' => 'some.future.event',
     'data' => ['supporter_name' => 'Nobody'],
     'event_id' => 999996,
     'live_mode' => false
 ], $csv, $log);
 
-assert_equals('archived', $result['status'], 'Unknown events return status=archived');
-assert_false(file_exists($csv), 'Unknown event does not create CSV');
+assertEquals('archived', $result['status'], 'Unknown events return status=archived');
+assertFalse(file_exists($csv), 'Unknown event does not create CSV');
 
 echo "\n";
 
@@ -572,13 +596,13 @@ $log = $test_dir . '/test14.log';
 
 // Only subscription.started, no donation.created first
 $started = json_decode(file_get_contents(__DIR__ . '/events/examples/recurring_donation_started_gruenwald.json'), true);
-$result = process_event($started, $csv, $log);
-$supporters = read_supporters($csv);
+$result = processEvent($started, $csv, $log);
+$supporters = readSupporters($csv);
 
-assert_true(isset($supporters['Grünwald Almöhü']), 'Supporter created from subscription.started alone');
-assert_equals(0.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'Amount = 0 (no donation yet)');
-assert_equals(1.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'Monthly rate set from subscription');
-assert_equals('monthly', $supporters['Grünwald Almöhü']['type'] ?? '', 'Type = monthly');
+assertTrue(isset($supporters['Grünwald Almöhü']), 'Supporter created from subscription.started alone');
+assertEquals(0.0, $supporters['Grünwald Almöhü']['amount'] ?? -1, 'Amount = 0 (no donation yet)');
+assertEquals(1.0, $supporters['Grünwald Almöhü']['monthly'] ?? -1, 'Monthly rate set from subscription');
+assertEquals('monthly', $supporters['Grünwald Almöhü']['type'] ?? '', 'Type = monthly');
 
 echo "\n";
 
@@ -596,12 +620,12 @@ $cancel = [
     'event_id' => 999995,
     'live_mode' => false
 ];
-$result = process_event($cancel, $csv, $log);
+$result = processEvent($cancel, $csv, $log);
 
-assert_equals(true, $result['success'], 'Cancel for unknown user still returns success');
+assertEquals(true, $result['success'], 'Cancel for unknown user still returns success');
 // CSV should not have Ghost User
-$supporters = read_supporters($csv);
-assert_false(isset($supporters['Ghost User']), 'Unknown user not created on cancel');
+$supporters = readSupporters($csv);
+assertFalse(isset($supporters['Ghost User']), 'Unknown user not created on cancel');
 
 echo "\n";
 
@@ -614,8 +638,8 @@ $payload = '{"type":"donation.created","live_mode":true,"data":{"supporter_name"
 $valid_sig = hash_hmac('sha256', $payload, BMC_WEBHOOK_SECRET);
 $invalid_sig = 'deadbeef0000';
 
-assert_true(hash_equals($valid_sig, hash_hmac('sha256', $payload, BMC_WEBHOOK_SECRET)), 'Valid signature matches');
-assert_false(hash_equals($invalid_sig, $valid_sig), 'Invalid signature rejected');
+assertTrue(hash_equals($valid_sig, hash_hmac('sha256', $payload, BMC_WEBHOOK_SECRET)), 'Valid signature matches');
+assertFalse(hash_equals($invalid_sig, $valid_sig), 'Invalid signature rejected');
 
 echo "\n";
 
@@ -628,7 +652,7 @@ $csv = $test_dir . '/test17.csv';
 $log = $test_dir . '/test17.log';
 
 // Create supporter via donation
-process_event([
+processEvent([
     'type' => 'donation.created',
     'live_mode' => false,
     'data' => [
@@ -639,12 +663,12 @@ process_event([
     ],
 ], $csv, $log);
 
-$supporters = read_supporters($csv);
-assert_true(isset($supporters['Refund Rudi']), 'Refund Rudi exists after donation');
-assert_equals(5.0, $supporters['Refund Rudi']['amount'], 'Refund Rudi amount=5');
+$supporters = readSupporters($csv);
+assertTrue(isset($supporters['Refund Rudi']), 'Refund Rudi exists after donation');
+assertEquals(5.0, $supporters['Refund Rudi']['amount'], 'Refund Rudi amount=5');
 
 // Refund the full amount
-process_event([
+processEvent([
     'type' => 'donation.refunded',
     'live_mode' => false,
     'data' => [
@@ -654,8 +678,8 @@ process_event([
     ],
 ], $csv, $log);
 
-$supporters = read_supporters($csv);
-assert_false(isset($supporters['Refund Rudi']), 'Refund Rudi removed after full refund (amount=0, monthly=0)');
+$supporters = readSupporters($csv);
+assertFalse(isset($supporters['Refund Rudi']), 'Refund Rudi removed after full refund (amount=0, monthly=0)');
 
 echo "\n";
 
@@ -678,9 +702,9 @@ $event = [
         'created_at' => 1717459200,
     ],
 ];
-process_event($event, $csv, $log);
-process_event($event, $csv, $log);
-process_event($event, $csv, $log);
+processEvent($event, $csv, $log);
+processEvent($event, $csv, $log);
+processEvent($event, $csv, $log);
 
 // Read raw CSV to check actual written values (not parsed floats)
 $csv_raw = file_get_contents($csv);
@@ -689,7 +713,7 @@ if (substr($csv_raw, 0, 3) === $bom) {
     $csv_raw = substr($csv_raw, 3);
 }
 preg_match('/"?Round Robin"?,one-time,([0-9.]+),/', $csv_raw, $m);
-assert_equals('0.3', $m[1] ?? null, 'CSV amount is 0.3 not 0.30000000000000004');
+assertEquals('0.3', $m[1] ?? null, 'CSV amount is 0.3 not 0.30000000000000004');
 
 echo "\n";
 
@@ -701,7 +725,7 @@ echo "--- Test: CSV UTF-8 BOM ---\n";
 // Re-use test18's csv which was just written
 $raw = file_get_contents($csv);
 $first3 = bin2hex(substr($raw, 0, 3));
-assert_equals('efbbbf', $first3, 'CSV starts with UTF-8 BOM (EF BB BF)');
+assertEquals('efbbbf', $first3, 'CSV starts with UTF-8 BOM (EF BB BF)');
 
 echo "\n";
 
@@ -715,85 +739,85 @@ $csv = $test_dir . '/test20.csv';
 $log = $test_dir . '/test20.log';
 
 // Step 1: First subscription - donation.created (first payment €5)
-process_event([
+processEvent([
     'type' => 'donation.created', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '5.00', 'currency' => 'EUR', 'created_at' => 1717459200],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(5.0, $s['Lifecycle Lisa']['amount'], 'Step 1: first payment amount=5');
-assert_equals('one-time', $s['Lifecycle Lisa']['type'], 'Step 1: type=one-time (before started event)');
+$s = readSupporters($csv);
+assertEquals(5.0, $s['Lifecycle Lisa']['amount'], 'Step 1: first payment amount=5');
+assertEquals('one-time', $s['Lifecycle Lisa']['type'], 'Step 1: type=one-time (before started event)');
 
 // Step 2: recurring_donation.started
-process_event([
+processEvent([
     'type' => 'recurring_donation.started', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa', 'amount' => 5, 'currency' => 'EUR', 'started_at' => 1717459200],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(5.0, $s['Lifecycle Lisa']['amount'], 'Step 2: amount unchanged at 5');
-assert_equals(5.0, $s['Lifecycle Lisa']['monthly'], 'Step 2: monthly=5');
-assert_equals('monthly', $s['Lifecycle Lisa']['type'], 'Step 2: type=monthly');
+$s = readSupporters($csv);
+assertEquals(5.0, $s['Lifecycle Lisa']['amount'], 'Step 2: amount unchanged at 5');
+assertEquals(5.0, $s['Lifecycle Lisa']['monthly'], 'Step 2: monthly=5');
+assertEquals('monthly', $s['Lifecycle Lisa']['type'], 'Step 2: type=monthly');
 
 // Step 3: Second month payment (donation.created again)
-process_event([
+processEvent([
     'type' => 'donation.created', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '5.00', 'currency' => 'EUR', 'created_at' => 1720137600],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(10.0, $s['Lifecycle Lisa']['amount'], 'Step 3: amount accumulated to 10');
-assert_equals(5.0, $s['Lifecycle Lisa']['monthly'], 'Step 3: monthly still 5');
+$s = readSupporters($csv);
+assertEquals(10.0, $s['Lifecycle Lisa']['amount'], 'Step 3: amount accumulated to 10');
+assertEquals(5.0, $s['Lifecycle Lisa']['monthly'], 'Step 3: monthly still 5');
 
 // Step 4: Cancel subscription
-process_event([
+processEvent([
     'type' => 'recurring_donation.cancelled', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa'],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(10.0, $s['Lifecycle Lisa']['amount'], 'Step 4: cancel keeps amount=10');
-assert_equals(0.0, $s['Lifecycle Lisa']['monthly'], 'Step 4: monthly zeroed');
-assert_equals('one-time', $s['Lifecycle Lisa']['type'], 'Step 4: type back to one-time');
+$s = readSupporters($csv);
+assertEquals(10.0, $s['Lifecycle Lisa']['amount'], 'Step 4: cancel keeps amount=10');
+assertEquals(0.0, $s['Lifecycle Lisa']['monthly'], 'Step 4: monthly zeroed');
+assertEquals('one-time', $s['Lifecycle Lisa']['type'], 'Step 4: type back to one-time');
 
 // Step 5: New subscription at different rate (donation.created €3)
-process_event([
+processEvent([
     'type' => 'donation.created', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '3.00', 'currency' => 'EUR', 'created_at' => 1722729600],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(13.0, $s['Lifecycle Lisa']['amount'], 'Step 5: amount accumulated to 13');
+$s = readSupporters($csv);
+assertEquals(13.0, $s['Lifecycle Lisa']['amount'], 'Step 5: amount accumulated to 13');
 
 // Step 6: recurring_donation.started at new rate
-process_event([
+processEvent([
     'type' => 'recurring_donation.started', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa', 'amount' => 3, 'currency' => 'EUR', 'started_at' => 1722729600],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(3.0, $s['Lifecycle Lisa']['monthly'], 'Step 6: monthly=3 (new rate)');
-assert_equals('monthly', $s['Lifecycle Lisa']['type'], 'Step 6: type=monthly again');
+$s = readSupporters($csv);
+assertEquals(3.0, $s['Lifecycle Lisa']['monthly'], 'Step 6: monthly=3 (new rate)');
+assertEquals('monthly', $s['Lifecycle Lisa']['type'], 'Step 6: type=monthly again');
 
 // Step 7: Cancel again
-process_event([
+processEvent([
     'type' => 'recurring_donation.cancelled', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa'],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(13.0, $s['Lifecycle Lisa']['amount'], 'Step 7: cancel keeps amount=13');
-assert_equals(0.0, $s['Lifecycle Lisa']['monthly'], 'Step 7: monthly zeroed again');
+$s = readSupporters($csv);
+assertEquals(13.0, $s['Lifecycle Lisa']['amount'], 'Step 7: cancel keeps amount=13');
+assertEquals(0.0, $s['Lifecycle Lisa']['monthly'], 'Step 7: monthly zeroed again');
 
 // Step 8: Partial refund (€5 of €13)
-process_event([
+processEvent([
     'type' => 'donation.refunded', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '5.00', 'currency' => 'EUR'],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_equals(8.0, $s['Lifecycle Lisa']['amount'], 'Step 8: partial refund, amount=8');
-assert_true(isset($s['Lifecycle Lisa']), 'Step 8: supporter still exists (amount>0)');
+$s = readSupporters($csv);
+assertEquals(8.0, $s['Lifecycle Lisa']['amount'], 'Step 8: partial refund, amount=8');
+assertTrue(isset($s['Lifecycle Lisa']), 'Step 8: supporter still exists (amount>0)');
 
 // Step 9: Full refund of remaining €8
-process_event([
+processEvent([
     'type' => 'donation.refunded', 'live_mode' => false,
     'data' => ['supporter_name' => 'Lifecycle Lisa', 'total_amount_charged' => '8.00', 'currency' => 'EUR'],
 ], $csv, $log);
-$s = read_supporters($csv);
-assert_false(isset($s['Lifecycle Lisa']), 'Step 9: supporter removed after full refund');
+$s = readSupporters($csv);
+assertFalse(isset($s['Lifecycle Lisa']), 'Step 9: supporter removed after full refund');
 
 echo "\n";
 
@@ -801,8 +825,8 @@ echo "\n";
 // HELPER
 // ========================================
 
-function assert_false($condition, $message) {
-    assert_equals(false, $condition, $message);
+function assertFalse($condition, $message) {
+    assertEquals(false, $condition, $message);
 }
 
 // ========================================

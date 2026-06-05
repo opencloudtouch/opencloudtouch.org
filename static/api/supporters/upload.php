@@ -11,7 +11,7 @@ if (!file_exists($config_file)) {
     http_response_code(500);
     die('Configuration missing');
 }
-require $config_file;
+require_once $config_file;
 
 if (!defined('API_USER') || !defined('API_PASS')) {
     http_response_code(500);
@@ -44,7 +44,7 @@ if (empty($csv_content)) {
 
 // Validate CSV format (must have header: name,type,amount,monthlyAmount,firstSupportDate)
 $lines = explode("\n", trim($csv_content));
-if (count($lines) < 1) {
+if (empty($lines)) {
     http_response_code(400);
     die('Invalid CSV: no header');
 }
@@ -59,7 +59,9 @@ if ($header !== $expected_header) {
 
 // Validate all rows
 for ($i = 1; $i < count($lines); $i++) {
-    if (empty(trim($lines[$i]))) continue;
+    if (empty(trim($lines[$i]))) {
+        continue;
+    }
     
     $row = str_getcsv($lines[$i]);
     if (count($row) !== 5) {

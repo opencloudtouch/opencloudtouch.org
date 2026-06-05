@@ -11,7 +11,7 @@ if (!file_exists($config_file)) {
     http_response_code(500);
     die('Configuration missing');
 }
-require $config_file;
+require_once $config_file;
 
 if (!defined('API_USER') || !defined('API_PASS')) {
     http_response_code(500);

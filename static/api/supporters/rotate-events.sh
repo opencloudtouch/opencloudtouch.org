@@ -6,6 +6,7 @@
 EVENTS_DIR="/srv/www/w018fdfd/api/supporters/events"
 ARCHIVE_DIR="/srv/www/w018fdfd/api/supporters/archives"
 CUTOFF_DATE=$(date -d "90 days ago" +%Y-%m-%d)
+DATE_FMT='+%Y-%m-%d %H:%M:%S'
 
 # Create archive dir if not exists
 mkdir -p "$ARCHIVE_DIR"
@@ -24,12 +25,12 @@ done)
 # Count events
 EVENT_COUNT=$(echo "$OLD_EVENTS" | grep -c "\.json" || echo 0)
 
-if [ "$EVENT_COUNT" -eq 0 ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] No events older than 90 days found."
+if [[ "$EVENT_COUNT" -eq 0 ]]; then
+    echo "$(date "$DATE_FMT") [INFO] No events older than 90 days found."
     exit 0
 fi
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] Found $EVENT_COUNT events older than 90 days"
+echo "$(date "$DATE_FMT") [INFO] Found $EVENT_COUNT events older than 90 days"
 
 # Create archive filename
 ARCHIVE_NAME="events-archive-$(date +%Y-%m-%d).zip"
@@ -42,20 +43,20 @@ echo "$OLD_EVENTS" | while read file; do
 done
 
 # Verify archive
-if [ -f "$ARCHIVE_PATH" ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [SUCCESS] Created archive: $ARCHIVE_NAME ($EVENT_COUNT events)"
+if [[ -f "$ARCHIVE_PATH" ]]; then
+    echo "$(date "$DATE_FMT") [SUCCESS] Created archive: $ARCHIVE_NAME ($EVENT_COUNT events)"
     
     # Delete archived files
     echo "$OLD_EVENTS" | while read file; do
         rm -f "$file"
     done
     
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] Deleted $EVENT_COUNT old event files"
+    echo "$(date "$DATE_FMT") [INFO] Deleted $EVENT_COUNT old event files"
 else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Failed to create archive"
+    echo "$(date "$DATE_FMT") [ERROR] Failed to create archive" >&2
     exit 1
 fi
 
 # Cleanup: Remove archives older than 1 year
 find "$ARCHIVE_DIR" -name "events-archive-*.zip" -type f -mtime +365 -delete
-echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] Cleaned up archives older than 1 year"
+echo "$(date "$DATE_FMT") [INFO] Cleaned up archives older than 1 year"
