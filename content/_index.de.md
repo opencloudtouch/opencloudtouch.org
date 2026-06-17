@@ -49,7 +49,7 @@ layout: hextra-home
   {{< hextra/feature-card
     title="Einfache Einrichtung"
     icon="lightning-bolt"
-    subtitle="Docker-Image laden, Lautsprecher darauf zeigen, fertig. Kein Löten, keine Firmware-Änderungen, keine erloschene Garantie. Funktioniert mit jedem SoundTouch-Lautsprecher."
+    subtitle="OCT starten und dann pro Lautsprecher einmal den geführten Setup-Wizard nutzen, um Bose-Cloud-Endpunkte umzuleiten. Kein Löten und keine Custom-Firmware nötig; die Methode hängt von Modell und Firmware ab."
     class="hx:aspect-auto hx:md:aspect-[1.1/1] hx:max-md:min-h-[340px]"
     image="/images/screenshots/setup-raspi.png"
     imageClass="hx:top-[40%] hx:left-[24px] hx:w-[180%] hx:sm:w-[110%] hx:dark:opacity-80"
@@ -58,7 +58,7 @@ layout: hextra-home
   {{< hextra/feature-card
     title="Open Source"
     icon="code"
-    subtitle="MIT-lizenziert. Vollständig transparent. Beiträge willkommen. Entwickelt von Menschen die ihre Lautsprecher lieben und sie nicht zu Elektroschrott werden lassen wollen."
+    subtitle="Apache-2.0-lizenziert. Vollständig transparent. Beiträge willkommen. Entwickelt von Menschen die ihre Lautsprecher lieben und sie nicht zu Elektroschrott werden lassen wollen."
   >}}
   {{< hextra/feature-card
     title="Aktive Entwicklung"

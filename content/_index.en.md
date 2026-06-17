@@ -49,7 +49,7 @@ layout: hextra-home
   {{< hextra/feature-card
     title="Easy Setup"
     icon="lightning-bolt"
-    subtitle="Pull a Docker image, point your speakers to it, done. No soldering, no firmware mods, no voided warranties. Works with every SoundTouch speaker ever made."
+    subtitle="Run OCT, then use the guided setup wizard once per speaker to redirect Bose cloud endpoints. No soldering and no custom firmware required; setup method depends on model and firmware."
     class="hx:aspect-auto hx:md:aspect-[1.1/1] hx:max-md:min-h-[340px]"
     image="/images/screenshots/setup-raspi.png"
     imageClass="hx:top-[40%] hx:left-[24px] hx:w-[180%] hx:sm:w-[110%] hx:dark:opacity-80"
@@ -58,7 +58,7 @@ layout: hextra-home
   {{< hextra/feature-card
     title="Open Source"
     icon="code"
-    subtitle="MIT licensed. Fully transparent. Contributions welcome. Built by people who love their speakers and refuse to let them become e-waste."
+    subtitle="Apache 2.0 licensed. Fully transparent. Contributions welcome. Built by people who love their speakers and refuse to let them become e-waste."
   >}}
   {{< hextra/feature-card
     title="Active Development"

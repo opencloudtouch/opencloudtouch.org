@@ -33,6 +33,19 @@ OpenCloudTouch fängt die Cloud-Aufrufe der Lautsprecher ab und fungiert als lok
 - **Web UI** — browserbasierte Oberfläche für Konfiguration und Wiedergabe
 - **Kein Internet nötig** — funktioniert vollständig offline (außer für Streaming von Radioinhalten)
 
+## Was sich am Lautsprecher ändert
+
+OpenCloudTouch benötigt kein Löten und keine Custom-Firmware, aber eine einmalige geräteseitige Umleitung, damit Cloud-Endpunkte auf deinen lokalen OCT-Host zeigen.
+
+Typische Setup-Aktionen (abhängig von Modell/Firmware):
+
+- Service-URL-Konfiguration im SoundTouch-System anpassen (BMX/Cloud-Endpunkt-Umleitung)
+- `/etc/hosts`-Einträge für Bose-Domains setzen
+- Umleitung verifizieren und Rollback-Backups vorhalten
+
+Der Setup-Wizard führt diese Schritte geführt aus und unterstützt Backup/Restore.
+Die Zugriffsmethode (SSH/USB oder Telnet) hängt von Lautsprechermodell und Firmware-Version ab.
+
 ## Komponenten
 
 | Komponente | Technologie | Zweck |

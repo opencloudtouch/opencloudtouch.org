@@ -33,6 +33,19 @@ OpenCloudTouch intercepts the speaker's cloud calls by acting as a local replace
 - **Web UI** — browser-based interface for configuration and playback
 - **No Internet required** — works fully offline (except for streaming radio content)
 
+## What Changes on the Speaker
+
+OpenCloudTouch does not require soldering or custom firmware, but it does require a one-time device-side redirect setup so cloud endpoints resolve to your local OCT host.
+
+Typical setup actions (model/firmware dependent):
+
+- Update SoundTouch service URL configuration (BMX/cloud endpoint redirect)
+- Add `/etc/hosts` entries for Bose domains
+- Verify redirect behavior and keep rollback backups
+
+The setup wizard performs these steps in a guided flow with backup/restore support.
+Access method (SSH/USB or Telnet) depends on speaker model and firmware version.
+
 ## Components
 
 | Component | Technology | Purpose |

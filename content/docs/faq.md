@@ -26,7 +26,11 @@ If it has "SoundTouch" in the name, it should work.
 {{< /details >}}
 
 {{< details title="Do I need to modify my speakers?" >}}
-No. OpenCloudTouch works with unmodified speakers. No firmware changes, no soldering, no hardware mods. Your warranty (if any remains) stays intact.
+OpenCloudTouch does **not** require soldering or custom firmware.
+
+However, it does require a **one-time configuration change on the speaker** (for example cloud URL redirect and/or `/etc/hosts` entries), typically done through the setup wizard via SSH/USB or Telnet (depending on model/firmware).
+
+OpenCloudTouch creates backups and provides restore options, but because device configuration is changed, warranty implications depend on your region/device and cannot be guaranteed.
 {{< /details >}}
 
 {{< details title="Does it need internet access?" >}}

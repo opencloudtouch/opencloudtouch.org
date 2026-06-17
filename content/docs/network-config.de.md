@@ -24,6 +24,7 @@ Docker Desktop führt Container in einer VM aus, die Multicast standardmäßig b
 ```bash
 docker run -d -p 7777:7777 \
   --name opencloudtouch \
+  -v opencloudtouch-data:/data \
   ghcr.io/opencloudtouch/opencloudtouch:latest
 ```
 
@@ -52,9 +53,13 @@ New-NetFirewallRule -DisplayName "WSL SSDP Discovery" `
     -LocalPort 1900,5353 -Program "System"
 ```
 
-### 3. Podman/Docker im Rootful-Modus ausführen
+### 3. Container im Rootful-Modus ausführen (nur Podman)
+
+> [!NOTE]
+> Dieser Schritt gilt nur für **Podman**-Nutzer. Docker für Windows/WSL2 unterstützt diesen Befehl nicht — nutze stattdessen direkt `--network host` in deinem Docker-Befehl.
 
 ```bash
+# Nur für Podman-Nutzer:
 podman machine set --rootful
 podman run --network host ...
 ```

@@ -26,7 +26,11 @@ Wenn "SoundTouch" im Namen steht, sollte es funktionieren.
 {{< /details >}}
 
 {{< details title="Muss ich meine Lautsprecher modifizieren?" >}}
-Nein. OpenCloudTouch funktioniert mit unveränderten Lautsprechern. Keine Firmware-Änderungen, kein Löten, keine Hardware-Modifikationen. Deine Garantie (falls noch vorhanden) bleibt bestehen.
+OpenCloudTouch benötigt **kein Löten** und **keine Custom-Firmware**.
+
+Es braucht aber eine **einmalige Konfigurationsänderung am Lautsprecher** (zum Beispiel Cloud-URL-Umleitung und/oder `/etc/hosts`-Einträge), typischerweise über den Setup-Wizard via SSH/USB oder Telnet (je nach Modell/Firmware).
+
+OpenCloudTouch erstellt Backups und bietet Restore-Optionen. Da jedoch die Gerätekonfiguration verändert wird, lassen sich Garantie-Auswirkungen je nach Region/Gerät nicht pauschal zusagen.
 {{< /details >}}
 
 {{< details title="Braucht es Internetzugang?" >}}
