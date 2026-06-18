@@ -31,7 +31,7 @@ OpenCloudTouch fängt die Cloud-Aufrufe der Lautsprecher ab und fungiert als lok
 - **SSDP-Erkennung** — findet Lautsprecher im Netzwerk automatisch
 - **REST API** — bietet Preset-Verwaltung, Radio-Suche und Lautsprechersteuerung
 - **Web UI** — browserbasierte Oberfläche für Konfiguration und Wiedergabe
-- **Kein Internet nötig** — funktioniert vollständig offline (außer für Streaming von Radioinhalten)
+- **Internetzugang erforderlich** — nötig für den ersten Start der Raspberry-Pi-Images (Container-Download), Updates und Internetradio-Streaming
 
 ## Was sich am Lautsprecher ändert
 

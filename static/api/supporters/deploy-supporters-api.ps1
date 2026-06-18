@@ -1,5 +1,5 @@
 # OpenCloudTouch Supporters API — Deployment Script
-#
+# 
 # Prerequisites: WinSCP installed (https://winscp.net/eng/download.php)
 # Usage: .\deploy-supporters-api.ps1
 
@@ -133,11 +133,11 @@ Remove-Item $envPhpPath -Force -ErrorAction SilentlyContinue
 # Test API
 if ($Test) {
     Write-Host "🧪 Testing API endpoints..." -ForegroundColor Yellow
-
+    
     # Test download
     $apiUrl = "https://$($config['ftp.host'].Replace('ftp.', ''))/api/supporters/get.php"
     $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($config['api.user']):$($config['api.pass'])"))
-
+    
     try {
         $response = Invoke-WebRequest -Uri $apiUrl -Headers @{Authorization="Basic $auth"} -UseBasicParsing
         $lines = ($response.Content -split "`n").Count
@@ -149,7 +149,7 @@ if ($Test) {
             Write-Host "   ❌ GET failed: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
-
+    
     Write-Host ""
 }
 

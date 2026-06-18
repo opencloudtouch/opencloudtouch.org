@@ -31,7 +31,7 @@ OpenCloudTouch intercepts the speaker's cloud calls by acting as a local replace
 - **SSDP Discovery** — finds speakers on the network automatically
 - **REST API** — provides preset management, radio lookup, and speaker control
 - **Web UI** — browser-based interface for configuration and playback
-- **No Internet required** — works fully offline (except for streaming radio content)
+- **Internet access required** — needed for initial Raspberry Pi image startup (container download), updates, and internet radio streaming
 
 ## What Changes on the Speaker
 

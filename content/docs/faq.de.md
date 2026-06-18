@@ -34,7 +34,9 @@ OpenCloudTouch erstellt Backups und bietet Restore-Optionen. Da jedoch die Gerä
 {{< /details >}}
 
 {{< details title="Braucht es Internetzugang?" >}}
-OpenCloudTouch selbst funktioniert vollständig offline. Allerdings benötigt das Streaming von Internetradio-Stationen natürlich eine Internetverbindung für den Audio-Stream.
+Ja. Internetzugang ist erforderlich.
+
+Er wird mindestens für den ersten Start der Raspberry-Pi-Images (Docker-Container-Download), Updates und das Streaming von Internetradio benötigt.
 {{< /details >}}
 
 ## Einrichtung

@@ -1,0 +1,6 @@
+{
+    "sonarlint.connectedMode.project": {
+        "connectionId": "opencloudtouch",
+        "projectKey": "opencloudtouch_opencloudtouch.org"
+    }
+}
